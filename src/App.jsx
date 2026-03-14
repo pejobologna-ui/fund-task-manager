@@ -12,7 +12,7 @@ import { dateDiff } from './utils'
 
 export default function App() {
   const { session, profile, loading: authLoading } = useAuth()
-  const { tasks, loading, error, refetch, toggleDone, updateNotes } = useTasks()
+  const { tasks, loading, error, refetch, toggleDone, updateNotes, updateField } = useTasks()
 
   const [view, setView]       = useState('all')
   const [filterStatus, setFS] = useState('all')
@@ -121,6 +121,7 @@ export default function App() {
             selectedId={selectedId}
             onSelect={select}
             onToggle={toggleDone}
+            onUpdate={updateField}
             onAddInCategory={openNewTask}
           />
         </div>

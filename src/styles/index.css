@@ -168,6 +168,18 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-share-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; color: var(--light); }
 .ftm-share-check.checked { background: #6b3fa0; border-color: #6b3fa0; color: #fff; }
 
+/* Cell popovers */
+.ftm-cell-trigger { cursor: pointer; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; display: inline-flex; transition: background 0.1s; }
+.ftm-cell-trigger:hover { background: rgba(0,0,0,0.07); }
+.ftm-popover { position: fixed; z-index: 300; background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); box-shadow: 0 4px 18px rgba(0,0,0,0.13); min-width: 130px; overflow: hidden; }
+.ftm-pop-list { display: flex; flex-direction: column; padding: 3px 0; }
+.ftm-pop-item { display: flex; align-items: center; gap: 7px; padding: 6px 10px; cursor: pointer; font-size: 12px; color: var(--text); transition: background 0.1s; white-space: nowrap; }
+.ftm-pop-item:hover { background: var(--surface2); }
+.ftm-pop-item.active { background: var(--gold-bg); }
+.ftm-pop-date { padding: 8px; }
+.ftm-pop-date input { padding: 5px 7px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 12px; color: var(--text); background: var(--surface2); outline: none; width: 140px; }
+.ftm-pop-date input:focus { border-color: var(--navy); }
+
 /* Misc */
 .ftm-empty { text-align: center; padding: 32px 16px; color: var(--light); font-size: 12px; }
 .ftm-loading { text-align: center; padding: 48px 16px; color: var(--light); font-size: 12px; }

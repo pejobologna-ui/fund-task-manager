@@ -1,6 +1,8 @@
-import { useMemo } from 'react'
-import { STATUS_CLASS, PRIORITY_CLASS } from '../constants'
+import { useMemo, useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { STATUS_CLASS, PRIORITY_CLASS, STATUSES, PRIORITIES } from '../constants'
 import { formatDue, dueCls } from '../utils'
+import { useLookups } from '../hooks/useTasks'
 
 function StatusBadge({ status }) {
   return <span className={`ftm-badge ${STATUS_CLASS[status] ?? 's-open'}`}>{status}</span>
@@ -8,6 +10,51 @@ function StatusBadge({ status }) {
 
 function PriorityBadge({ priority }) {
   return <span className={`ftm-badge ${PRIORITY_CLASS[priority] ?? 'p-md'}`}>{priority}</span>
+}
+
+/**
+ * Wraps a cell with a click-to-open popover rendered via a portal so it never
+ * gets clipped by the table's overflow:hidden.  Closes on outside mousedown.
+ */
+function CellPopover({ trigger, children, open, onOpen, onClose }) {
+  const triggerRef = useRef(null)
+  const popRef     = useRef(null)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+
+  useEffect(() => {
+    if (!open) return
+
+    if (triggerRef.current) {
+      const r = triggerRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, left: r.left })
+    }
+
+    function onMouseDown(e) {
+      if (triggerRef.current?.contains(e.target)) return
+      if (popRef.current?.contains(e.target))     return
+      onClose()
+    }
+    document.addEventListener('mousedown', onMouseDown)
+    return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [open, onClose])
+
+  return (
+    <>
+      <div
+        ref={triggerRef}
+        className="ftm-cell-trigger"
+        onClick={e => { e.stopPropagation(); open ? onClose() : onOpen() }}
+      >
+        {trigger}
+      </div>
+      {open && createPortal(
+        <div ref={popRef} className="ftm-popover" style={{ top: pos.top, left: pos.left }}>
+          {children}
+        </div>,
+        document.body
+      )}
+    </>
+  )
 }
 
 function StatsBar({ tasks }) {
@@ -38,9 +85,12 @@ function StatsBar({ tasks }) {
   )
 }
 
-function TaskRow({ task, selected, onSelect, onToggle }) {
+function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users }) {
+  const [openCell, setOpenCell] = useState(null)
   const isDone = task.status === 'Done'
   const dc = dueCls(task.due_date, task.status)
+
+  function close() { setOpenCell(null) }
 
   return (
     <div
@@ -54,6 +104,7 @@ function TaskRow({ task, selected, onSelect, onToggle }) {
       >
         {isDone ? '✓' : ''}
       </div>
+
       <div style={{ minWidth: 0 }}>
         <div className={`ftm-ttitle${isDone ? ' done' : ''}`}>{task.title}</div>
         <div className="ftm-tsub">
@@ -61,24 +112,111 @@ function TaskRow({ task, selected, onSelect, onToggle }) {
           {task.thread?.name ?? '—'}
         </div>
       </div>
+
       <div style={{ overflow: 'hidden' }}>
         <span className="ftm-badge b-cat" style={{ maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-flex' }}>
           {(task.thread?.name ?? '').split('—')[0].trim()}
         </span>
       </div>
-      <StatusBadge status={task.status} />
-      <PriorityBadge priority={task.priority} />
-      <div className="ftm-asgn">
-        <div className="ftm-aavatar">{task.assignee?.initials ?? '?'}</div>
-        <div className="ftm-aname">{(task.assignee?.name ?? '—').split(' ')[0]}</div>
-      </div>
-      <div className={`ftm-due${dc ? ` ${dc}` : ''}`}>{formatDue(task.due_date, task.status)}</div>
+
+      {/* Status */}
+      <CellPopover
+        open={openCell === 'status'}
+        onOpen={() => setOpenCell('status')}
+        onClose={close}
+        trigger={<StatusBadge status={task.status} />}
+      >
+        <div className="ftm-pop-list">
+          {STATUSES.map(s => (
+            <div
+              key={s}
+              className={`ftm-pop-item${task.status === s ? ' active' : ''}`}
+              onClick={e => { e.stopPropagation(); close(); onUpdate(task.id, { status: s }, { status: s }) }}
+            >
+              <StatusBadge status={s} />
+            </div>
+          ))}
+        </div>
+      </CellPopover>
+
+      {/* Priority */}
+      <CellPopover
+        open={openCell === 'priority'}
+        onOpen={() => setOpenCell('priority')}
+        onClose={close}
+        trigger={<PriorityBadge priority={task.priority} />}
+      >
+        <div className="ftm-pop-list">
+          {PRIORITIES.map(p => (
+            <div
+              key={p}
+              className={`ftm-pop-item${task.priority === p ? ' active' : ''}`}
+              onClick={e => { e.stopPropagation(); close(); onUpdate(task.id, { priority: p }, { priority: p }) }}
+            >
+              <PriorityBadge priority={p} />
+            </div>
+          ))}
+        </div>
+      </CellPopover>
+
+      {/* Assignee */}
+      <CellPopover
+        open={openCell === 'assignee'}
+        onOpen={() => setOpenCell('assignee')}
+        onClose={close}
+        trigger={
+          <div className="ftm-asgn">
+            <div className="ftm-aavatar">{task.assignee?.initials ?? '?'}</div>
+            <div className="ftm-aname">{(task.assignee?.name ?? '—').split(' ')[0]}</div>
+          </div>
+        }
+      >
+        <div className="ftm-pop-list">
+          {users.map(u => (
+            <div
+              key={u.id}
+              className={`ftm-pop-item${task.assignee?.id === u.id ? ' active' : ''}`}
+              onClick={e => {
+                e.stopPropagation()
+                close()
+                onUpdate(task.id, { assignee_id: u.id }, { assignee: u })
+              }}
+            >
+              <div className="ftm-aavatar" style={{ width: 18, height: 18, fontSize: 7, flexShrink: 0 }}>{u.initials}</div>
+              <span>{u.name}</span>
+            </div>
+          ))}
+        </div>
+      </CellPopover>
+
+      {/* Due date */}
+      <CellPopover
+        open={openCell === 'due'}
+        onOpen={() => setOpenCell('due')}
+        onClose={close}
+        trigger={<div className={`ftm-due${dc ? ` ${dc}` : ''}`}>{formatDue(task.due_date, task.status)}</div>}
+      >
+        <div className="ftm-pop-date">
+          <input
+            type="date"
+            defaultValue={task.due_date ?? ''}
+            onClick={e => e.stopPropagation()}
+            onChange={e => {
+              close()
+              onUpdate(task.id, { due_date: e.target.value || null }, { due_date: e.target.value || null })
+            }}
+          />
+        </div>
+      </CellPopover>
+
       <button className="ftm-more" onClick={e => { e.stopPropagation(); onSelect(task.id) }}>⋯</button>
     </div>
   )
 }
 
-export default function TaskList({ tasks, allTasks, loading, error, selectedId, onSelect, onToggle, onAddInCategory }) {
+export default function TaskList({ tasks, allTasks, loading, error, selectedId, onSelect, onToggle, onUpdate, onAddInCategory }) {
+  const { users } = useLookups()
+
   const groups = useMemo(() => {
     const map = {}
     tasks.forEach(t => {
@@ -124,6 +262,8 @@ export default function TaskList({ tasks, allTasks, loading, error, selectedId, 
                   selected={t.id === selectedId}
                   onSelect={onSelect}
                   onToggle={onToggle}
+                  onUpdate={onUpdate}
+                  users={users}
                 />
               ))}
               <div className="ftm-addrow" onClick={() => onAddInCategory(cat)}>

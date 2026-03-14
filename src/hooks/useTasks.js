@@ -67,7 +67,24 @@ export function useTasks() {
     return error
   }, [])
 
-  return { tasks, loading, error, refetch: fetch, toggleDone, updateNotes }
+  // Generic field updater. dbUpdates goes to Supabase; stateUpdates is merged
+  // into local state (pass it when you also need to update nested objects like
+  // the full `assignee` record alongside the FK column).
+  const updateField = useCallback(async (taskId, dbUpdates, stateUpdates) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update(dbUpdates)
+      .eq('id', taskId)
+
+    if (!error) {
+      setTasks(prev =>
+        prev.map(t => t.id === taskId ? { ...t, ...(stateUpdates ?? dbUpdates) } : t)
+      )
+    }
+    return error
+  }, [])
+
+  return { tasks, loading, error, refetch: fetch, toggleDone, updateNotes, updateField }
 }
 
 /**
