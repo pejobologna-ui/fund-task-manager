@@ -3,10 +3,20 @@ import { supabase } from '../supabaseClient'
 
 const AuthContext = createContext(null)
 
+// ---------------------------------------------------------------------------
+// Dev bypass — set VITE_DEV_BYPASS_AUTH=true in .env to skip Google OAuth.
+// Never active in production builds (import.meta.env.DEV is false there).
+// ---------------------------------------------------------------------------
+const DEV_BYPASS =
+  import.meta.env.DEV && import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'
+
+const DEV_SESSION = { user: { id: 'dev-00000000-0000-0000-0000-000000000000' } }
+const DEV_PROFILE = { id: DEV_SESSION.user.id, full_name: 'Dev User', initials: 'DU', role: 'gp' }
+
 export function AuthProvider({ children }) {
   // undefined = still loading, null = no session
-  const [session, setSession] = useState(undefined)
-  const [profile, setProfile] = useState(null)
+  const [session, setSession] = useState(DEV_BYPASS ? DEV_SESSION : undefined)
+  const [profile, setProfile] = useState(DEV_BYPASS ? DEV_PROFILE : null)
 
   async function fetchProfile(userId) {
     const { data } = await supabase
@@ -18,6 +28,8 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    if (DEV_BYPASS) return  // skip Supabase auth entirely in dev bypass mode
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       if (session?.user) fetchProfile(session.user.id)
@@ -34,6 +46,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function signOut() {
+    if (DEV_BYPASS) return
     await supabase.auth.signOut()
   }
 
