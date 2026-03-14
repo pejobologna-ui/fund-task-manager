@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fund Task Manager</title>
+<style>
+.ftm * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+:root {
+  --navy: #0f1f3d;
+  --navy2: #1a3260;
+  --gold: #b8933e;
+  --gold-bg: #f5edd8;
+  --border: rgba(0,0,0,0.1);
+  --border2: rgba(0,0,0,0.18);
+  --bg: #f5f4f0;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --text: #0f1f3d;
+  --muted: #6b7a99;
+  --light: #9aa3b8;
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 100vh; margin: 0; }
+.ftm { display: flex; height: 100vh; overflow: hidden; }
+.ftm-sidebar { width: 200px; min-width: 200px; background: var(--navy); display: flex; flex-direction: column; overflow-y: auto; }
+.ftm-brand { padding: 16px 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.ftm-brand-name { font-size: 13px; font-weight: 500; color: #fff; }
+.ftm-brand-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 1px; letter-spacing: 0.06em; }
+.ftm-snav { padding: 12px 8px 6px; }
+.ftm-slabel { font-size: 9px; font-weight: 500; color: rgba(255,255,255,0.28); letter-spacing: 0.1em; text-transform: uppercase; padding: 0 6px; margin-bottom: 2px; }
+.ftm-sitem { display: flex; align-items: center; gap: 7px; padding: 6px 6px; border-radius: 6px; cursor: pointer; color: rgba(255,255,255,0.55); font-size: 12px; transition: all 0.12s; user-select: none; }
+.ftm-sitem:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+.ftm-sitem.active { background: rgba(184,147,62,0.18); color: #d4a853; }
+.ftm-sdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.ftm-scnt { margin-left: auto; font-size: 10px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); padding: 0 5px; border-radius: 20px; }
+.ftm-sitem.active .ftm-scnt { background: rgba(184,147,62,0.2); color: #d4a853; }
+.ftm-sbottom { margin-top: auto; padding: 10px 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+.ftm-user { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
+.ftm-avatar { width: 26px; height: 26px; border-radius: 50%; background: #b8933e; color: var(--navy); font-size: 9px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ftm-uname { font-size: 11px; color: rgba(255,255,255,0.65); }
+.ftm-urole { font-size: 9px; color: rgba(255,255,255,0.28); }
+.ftm-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.ftm-top { background: var(--surface); border-bottom: 0.5px solid var(--border2); padding: 0 18px; height: 50px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.ftm-top-title { font-size: 14px; font-weight: 500; color: var(--text); }
+.ftm-spacer { flex: 1; }
+.ftm-search { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 5px 10px; min-width: 160px; }
+.ftm-search input { border: none; background: none; outline: none; font-family: inherit; font-size: 12px; color: var(--text); width: 100%; }
+.ftm-search input::placeholder { color: var(--light); }
+.ftm-btn { display: flex; align-items: center; gap: 5px; padding: 6px 12px; border-radius: var(--radius); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; border: none; transition: all 0.12s; background: var(--navy); color: #fff; }
+.ftm-btn:hover { background: var(--navy2); }
+.ftm-filters { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 0 18px; height: 40px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; overflow-x: auto; }
+.ftm-flabel { font-size: 11px; color: var(--light); white-space: nowrap; margin-right: 2px; }
+.ftm-chip { padding: 3px 9px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--surface); color: var(--muted); transition: all 0.12s; white-space: nowrap; user-select: none; }
+.ftm-chip:hover { border-color: rgba(0,0,0,0.3); color: var(--text); }
+.ftm-chip.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.ftm-fdiv { width: 1px; height: 18px; background: var(--border); margin: 0 3px; flex-shrink: 0; }
+.ftm-content { flex: 1; overflow-y: auto; padding: 16px 18px; }
+.ftm-stats { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 16px; }
+.ftm-stat { background: var(--surface2); border-radius: var(--radius); padding: 10px 12px; }
+.ftm-stat-label { font-size: 10px; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; margin-bottom: 3px; }
+.ftm-stat-val { font-size: 22px; font-weight: 500; color: var(--text); font-family: monospace; }
+.ftm-stat-sub { font-size: 10px; color: var(--light); margin-top: 1px; }
+.ftm-group { margin-bottom: 18px; }
+.ftm-ghdr { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; padding: 0 2px; }
+.ftm-gtitle { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+.ftm-gcnt { font-size: 10px; font-family: monospace; background: var(--surface2); color: var(--light); padding: 1px 6px; border-radius: 20px; }
+.ftm-table { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; }
+.ftm-row { display: grid; grid-template-columns: 24px 1fr 100px 88px 76px 80px 72px 28px; align-items: center; padding: 0 10px; border-bottom: 0.5px solid var(--border); min-height: 38px; gap: 6px; cursor: pointer; transition: background 0.1s; }
+.ftm-row:last-child { border-bottom: none; }
+.ftm-row:hover { background: var(--surface2); }
+.ftm-row.hdr { background: var(--surface2); cursor: default; min-height: 30px; }
+.ftm-row.hdr:hover { background: var(--surface2); }
+.ftm-ch { font-size: 10px; font-weight: 500; color: var(--light); letter-spacing: 0.05em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftm-check { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid var(--border2); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; transition: all 0.12s; }
+.ftm-check:hover { border-color: var(--navy); }
+.ftm-check.chk { background: var(--navy); border-color: var(--navy); color: #fff; }
+.ftm-ttitle { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftm-ttitle.done { text-decoration: line-through; color: var(--light); }
+.ftm-tsub { font-size: 10px; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftm-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 500; white-space: nowrap; }
+.s-open { background: #e8f0fb; color: #185fa5; }
+.s-prog { background: #faeeda; color: #854f0b; }
+.s-rev  { background: #fbeaf0; color: #993556; }
+.s-done { background: #eaf3de; color: #3b6d11; }
+.p-hi   { background: #fcebeb; color: #a32d2d; }
+.p-md   { background: #faeeda; color: #854f0b; }
+.p-lo   { background: #f1efe8; color: #5f5e5a; }
+.b-cat  { background: var(--gold-bg); color: #7a5c1e; font-size: 10px; }
+.ftm-asgn { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.ftm-aavatar { width: 20px; height: 20px; border-radius: 50%; background: var(--navy2); color: #fff; font-size: 8px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ftm-aname { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftm-due { font-size: 11px; color: var(--muted); font-family: monospace; }
+.ftm-due.ov { color: #a32d2d; }
+.ftm-due.soon { color: #854f0b; }
+.ftm-more { width: 24px; height: 24px; border-radius: 5px; border: none; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--light); font-size: 14px; transition: all 0.1s; }
+.ftm-more:hover { background: var(--surface2); color: var(--text); }
+.ftm-addrow { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-top: 0.5px solid var(--border); cursor: pointer; color: var(--light); font-size: 11px; transition: all 0.12s; }
+.ftm-addrow:hover { background: var(--surface2); color: var(--muted); }
+.ftm-detail { width: 0; min-width: 0; overflow: hidden; background: var(--surface); border-left: 0.5px solid var(--border2); transition: width 0.2s; display: flex; flex-direction: column; }
+.ftm-detail.open { width: 320px; min-width: 320px; overflow-y: auto; }
+.ftm-dhdr { padding: 14px 16px 10px; border-bottom: 0.5px solid var(--border); display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; }
+.ftm-dtitle { font-size: 13px; font-weight: 500; flex: 1; line-height: 1.45; color: var(--text); }
+.ftm-dclose { width: 24px; height: 24px; border-radius: 5px; border: none; background: none; cursor: pointer; color: var(--light); font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.ftm-dclose:hover { background: var(--surface2); color: var(--text); }
+.ftm-dbody { padding: 14px 16px; }
+.ftm-dsec { margin-bottom: 16px; }
+.ftm-dsec-t { font-size: 9px; font-weight: 500; color: var(--light); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; }
+.ftm-drow { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.ftm-dlbl { font-size: 11px; color: var(--muted); width: 68px; flex-shrink: 0; padding-top: 1px; }
+.ftm-dval { font-size: 11px; color: var(--text); }
+.ftm-ddesc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.ftm-dnotes { width: 100%; padding: 7px 9px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 12px; color: var(--text); background: var(--surface2); resize: vertical; min-height: 70px; outline: none; }
+.ftm-dnotes:focus { border-color: var(--navy); }
+.ftm-actitem { display: flex; gap: 7px; margin-bottom: 8px; font-size: 11px; }
+.ftm-actdot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); margin-top: 4px; flex-shrink: 0; }
+.ftm-acttxt { color: var(--muted); line-height: 1.5; }
+.ftm-acttime { color: var(--light); font-size: 10px; }
+.ftm-overlay { position: fixed; inset: 0; background: rgba(15,31,61,0.4); display: none; align-items: center; justify-content: center; z-index: 100; }
+.ftm-overlay.open { display: flex; }
+.ftm-modal { background: var(--surface); border-radius: var(--radius-lg); width: 100%; max-width: 480px; max-height: 95vh; overflow-y: auto; border: 0.5px solid var(--border2); margin: 16px; }
+.ftm-mhdr { padding: 16px 20px 12px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.ftm-mtitle { font-size: 14px; font-weight: 500; flex: 1; color: var(--text); }
+.ftm-mbody { padding: 16px 20px; }
+.ftm-fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ftm-ff { display: flex; flex-direction: column; gap: 4px; }
+.ftm-ff.full { grid-column: 1 / -1; }
+.ftm-flbl { font-size: 10px; font-weight: 500; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+.ftm-finput, .ftm-fsel, .ftm-fta { padding: 7px 9px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 12px; color: var(--text); background: var(--surface2); outline: none; transition: border-color 0.12s; }
+.ftm-finput:focus, .ftm-fsel:focus, .ftm-fta:focus { border-color: var(--navy); }
+.ftm-fta { resize: vertical; min-height: 60px; }
+.ftm-mftr { padding: 12px 20px 16px; display: flex; gap: 8px; justify-content: flex-end; border-top: 0.5px solid var(--border); }
+.ftm-gbtn { padding: 6px 12px; border-radius: var(--radius); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: transparent; color: var(--muted); transition: all 0.12s; }
+.ftm-gbtn:hover { background: var(--surface2); color: var(--text); }
+.ftm-empty { text-align: center; padding: 32px 16px; color: var(--light); font-size: 12px; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 20px; }
+</style>
+</head>
+<body>
+<div class="ftm" id="ftm">
+  <aside class="ftm-sidebar">
+    <div class="ftm-brand">
+      <div class="ftm-brand-name">Fund Manager</div>
+      <div class="ftm-brand-sub">TASK TRACKER · MVP</div>
+    </div>
+    <div class="ftm-snav">
+      <div class="ftm-slabel">Views</div>
+      <div class="ftm-sitem active" id="sv-all" onclick="ftmSetView('all',this)">
+        <div class="ftm-sdot" style="background:#b8933e"></div>All tasks<span class="ftm-scnt" id="sc-all">—</span>
+      </div>
+      <div class="ftm-sitem" id="sv-mine" onclick="ftmSetView('mine',this)">
+        <div class="ftm-sdot" style="background:#5dcaa5"></div>My tasks<span class="ftm-scnt" id="sc-mine">—</span>
+      </div>
+      <div class="ftm-sitem" id="sv-ov" onclick="ftmSetView('overdue',this)">
+        <div class="ftm-sdot" style="background:#e24b4a"></div>Overdue<span class="ftm-scnt" id="sc-ov">—</span>
+      </div>
+      <div class="ftm-sitem" id="sv-wk" onclick="ftmSetView('week',this)">
+        <div class="ftm-sdot" style="background:#378add"></div>Due this week<span class="ftm-scnt" id="sc-wk">—</span>
+      </div>
+    </div>
+    <div class="ftm-snav">
+      <div class="ftm-slabel">Categories</div>
+      <div id="ftm-cat-nav"></div>
+    </div>
+    <div class="ftm-snav">
+      <div class="ftm-slabel">Threads</div>
+      <div id="ftm-thread-nav"></div>
+    </div>
+    <div class="ftm-sbottom">
+      <div class="ftm-user">
+        <div class="ftm-avatar">PB</div>
+        <div><div class="ftm-uname">Pietro B.</div><div class="ftm-urole">General Partner</div></div>
+      </div>
+    </div>
+  </aside>
+  <div class="ftm-main">
+    <div class="ftm-top">
+      <span class="ftm-top-title" id="ftm-vtitle">All tasks</span>
+      <div class="ftm-spacer"></div>
+      <div class="ftm-search"><span style="color:#9aa3b8;font-size:12px">⌕</span><input type="text" placeholder="Search..." id="ftm-q" oninput="ftmRender()"></div>
+      <button class="ftm-btn" onclick="ftmOpenModal()">+ New task</button>
+    </div>
+    <div class="ftm-filters">
+      <span class="ftm-flabel">Status</span>
+      <div class="ftm-chip active" onclick="ftmFilt(this,'s','all')">All</div>
+      <div class="ftm-chip" onclick="ftmFilt(this,'s','Open')">Open</div>
+      <div class="ftm-chip" onclick="ftmFilt(this,'s','In Progress')">In Progress</div>
+      <div class="ftm-chip" onclick="ftmFilt(this,'s','In Review')">In Review</div>
+      <div class="ftm-chip" onclick="ftmFilt(this,'s','Done')">Done</div>
+      <div class="ftm-fdiv"></div>
+      <span class="ftm-flabel">Priority</span>
+      <div class="ftm-chip active" onclick="ftmFilt(this,'p','all')">All</div>
+      <div class="ftm-chip" onclick="ftmFilt(this,'p','High')">High</div>
+      <div class="ftm-chip" onclick="ftmFilt(this,'p','Medium')">Medium</div>
+      <div class="ftm-chip" onclick="ftmFilt(this,'p','Low')">Low</div>
+    </div>
+    <div class="ftm-content" id="ftm-content"></div>
+  </div>
+  <div class="ftm-detail" id="ftm-dp">
+    <div class="ftm-dhdr">
+      <div>
+        <div class="ftm-dtitle" id="dp-t">—</div>
+        <div style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap" id="dp-b"></div>
+      </div>
+      <button class="ftm-dclose" onclick="ftmCloseDP()">×</button>
+    </div>
+    <div class="ftm-dbody">
+      <div class="ftm-dsec">
+        <div class="ftm-dsec-t">Details</div>
+        <div class="ftm-drow"><span class="ftm-dlbl">Assignee</span><span class="ftm-dval" id="dp-as">—</span></div>
+        <div class="ftm-drow"><span class="ftm-dlbl">Category</span><span class="ftm-dval" id="dp-ct">—</span></div>
+        <div class="ftm-drow"><span class="ftm-dlbl">Thread</span><span class="ftm-dval" id="dp-th">—</span></div>
+        <div class="ftm-drow"><span class="ftm-dlbl">Company</span><span class="ftm-dval" id="dp-co">—</span></div>
+        <div class="ftm-drow"><span class="ftm-dlbl">Due</span><span class="ftm-dval" id="dp-du">—</span></div>
+      </div>
+      <div class="ftm-dsec">
+        <div class="ftm-dsec-t">Description</div>
+        <div class="ftm-ddesc" id="dp-de">—</div>
+      </div>
+      <div class="ftm-dsec">
+        <div class="ftm-dsec-t">Notes</div>
+        <textarea class="ftm-dnotes" id="dp-no" placeholder="Add notes..."></textarea>
+      </div>
+      <div class="ftm-dsec">
+        <div class="ftm-dsec-t">Activity</div>
+        <div id="dp-ac"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ftm-overlay" id="ftm-mo">
+  <div class="ftm-modal">
+    <div class="ftm-mhdr">
+      <span class="ftm-mtitle">New task</span>
+      <button class="ftm-dclose" onclick="ftmCloseModal()">×</button>
+    </div>
+    <div class="ftm-mbody">
+      <div class="ftm-fgrid">
+        <div class="ftm-ff full"><label class="ftm-flbl">Title</label><input class="ftm-finput" id="fm-ti" placeholder="Task title..."></div>
+        <div class="ftm-ff full"><label class="ftm-flbl">Description</label><textarea class="ftm-fta" id="fm-de" placeholder="Optional..."></textarea></div>
+        <div class="ftm-ff"><label class="ftm-flbl">Category</label><select class="ftm-fsel" id="fm-ct"></select></div>
+        <div class="ftm-ff"><label class="ftm-flbl">Thread</label><select class="ftm-fsel" id="fm-th"></select></div>
+        <div class="ftm-ff"><label class="ftm-flbl">Company</label><select class="ftm-fsel" id="fm-co"></select></div>
+        <div class="ftm-ff"><label class="ftm-flbl">Assignee</label><select class="ftm-fsel" id="fm-as"></select></div>
+        <div class="ftm-ff"><label class="ftm-flbl">Priority</label><select class="ftm-fsel" id="fm-pr"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+        <div class="ftm-ff"><label class="ftm-flbl">Due date</label><input class="ftm-finput" id="fm-du" type="date"></div>
+      </div>
+    </div>
+    <div class="ftm-mftr">
+      <button class="ftm-gbtn" onclick="ftmCloseModal()">Cancel</button>
+      <button class="ftm-btn" onclick="ftmSave()">Create task</button>
+    </div>
+  </div>
+</div>
+<script>
+const FTM_CATS=['Investment Process','Portfolio Monitoring','LP Reporting','IC / Board Docs','Legal & Compliance','Advisor Relations','Model Updates','Other'];
+const FTM_THREADS=['Deal Flow — Series A','Deal Flow — Seed','Portfolio Review Q2','LP Report H1 2025','IC Meeting June','Board Deck — PortCo A','Legal — Fund II Closing','Due Diligence — TechCo X'];
+const FTM_COS=['—','PortCo Alpha','PortCo Beta','PortCo Gamma','TechCo X (prospect)','HealthCo Y (prospect)','General (Fund)'];
+const FTM_TEAM=[{id:'PB',name:'Pietro B.',role:'GP'},{id:'MA',name:'Marco A.',role:'Associate'},{id:'SL',name:'Sara L.',role:'Analyst'},{id:'FR',name:'Fabio R.',role:'Analyst'}];
+let ftmTasks=[
+  {id:1,title:'Review term sheet — TechCo X',cat:'Investment Process',thread:'Deal Flow — Series A',company:'TechCo X (prospect)',asgn:'PB',prio:'High',status:'In Progress',due:'2025-06-15',desc:'Review and redline term sheet with legal on liquidation preference clause.',notes:'',created:'2025-06-08'},
+  {id:2,title:'Update financial model post-call',cat:'Model Updates',thread:'Deal Flow — Series A',company:'TechCo X (prospect)',asgn:'MA',prio:'High',status:'Open',due:'2025-06-14',desc:'Incorporate revised ARR projections from founder call on Jun 12.',notes:'',created:'2025-06-10'},
+  {id:3,title:'Q2 portfolio update — PortCo Alpha',cat:'Portfolio Monitoring',thread:'Portfolio Review Q2',company:'PortCo Alpha',asgn:'SL',prio:'Medium',status:'In Progress',due:'2025-06-20',desc:'Collect KPIs: MRR, headcount, runway. Request board pack from CEO.',notes:'',created:'2025-06-05'},
+  {id:4,title:'Draft LP letter H1 2025',cat:'LP Reporting',thread:'LP Report H1 2025',company:'General (Fund)',asgn:'PB',prio:'High',status:'Open',due:'2025-06-30',desc:'Semi-annual LP letter covering portfolio performance, exits, pipeline.',notes:'',created:'2025-06-01'},
+  {id:5,title:'IC memo — HealthCo Y',cat:'IC / Board Docs',thread:'IC Meeting June',company:'HealthCo Y (prospect)',asgn:'MA',prio:'High',status:'In Review',due:'2025-06-18',desc:'Full IC memo: market, team, financials, deal terms.',notes:'',created:'2025-06-07'},
+  {id:6,title:'Request missing KPIs — PortCo Beta',cat:'Portfolio Monitoring',thread:'Portfolio Review Q2',company:'PortCo Beta',asgn:'SL',prio:'Medium',status:'Open',due:'2025-06-16',desc:'Follow up with CFO on Q1 actuals: gross margin, CAC, churn.',notes:'',created:'2025-06-09'},
+  {id:7,title:'Fund II closing docs — legal review',cat:'Legal & Compliance',thread:'Legal — Fund II Closing',company:'General (Fund)',asgn:'FR',prio:'High',status:'Open',due:'2025-06-12',desc:'Coordinate with counsel on final LPA amendments.',notes:'',created:'2025-06-03'},
+  {id:8,title:'Board deck — PortCo Alpha June',cat:'IC / Board Docs',thread:'Board Deck — PortCo A',company:'PortCo Alpha',asgn:'MA',prio:'Medium',status:'Done',due:'2025-06-10',desc:'Prepare slides for June board meeting.',notes:'',created:'2025-05-28'},
+  {id:9,title:'Advisor intro — industrial BD contact',cat:'Advisor Relations',thread:'Deal Flow — Seed',company:'—',asgn:'PB',prio:'Low',status:'Open',due:'2025-06-25',desc:'Follow up on warm intro. Schedule 30-min call.',notes:'',created:'2025-06-06'},
+  {id:10,title:'Update cap table — PortCo Gamma',cat:'Model Updates',thread:'Portfolio Review Q2',company:'PortCo Gamma',asgn:'FR',prio:'Medium',status:'Done',due:'2025-06-08',desc:'Post-conversion cap table update following bridge round close.',notes:'',created:'2025-06-01'},
+  {id:11,title:'DD checklist — TechCo X',cat:'Investment Process',thread:'Due Diligence — TechCo X',company:'TechCo X (prospect)',asgn:'SL',prio:'High',status:'In Progress',due:'2025-06-17',desc:'Track DD checklist: legal, financial, commercial, technical.',notes:'',created:'2025-06-08'},
+  {id:12,title:'Review advisor engagement letter',cat:'Legal & Compliance',thread:'Legal — Fund II Closing',company:'General (Fund)',asgn:'PB',prio:'Low',status:'Open',due:'2025-06-28',desc:'Review engagement terms with placement agent for Fund II.',notes:'',created:'2025-06-10'},
+];
+let ftmNid=13,ftmView='all',ftmFS='all',ftmFP='all',ftmSelId=null;
+const TODAY=new Date();TODAY.setHours(0,0,0,0);
+function ftmDiff(d){const dt=new Date(d);dt.setHours(0,0,0,0);return Math.round((dt-TODAY)/86400000);}
+function ftmFmt(d){if(!d)return'—';const df=ftmDiff(d);if(df<0)return'Overdue';if(df===0)return'Today';if(df===1)return'Tomorrow';return new Date(d).toLocaleDateString('en-GB',{day:'numeric',month:'short'});}
+function ftmDC(d,s){if(!d||s==='Done')return'';const df=ftmDiff(d);if(df<0)return'ov';if(df<=3)return'soon';return'';}
+function ftmSB(s){const m={'Open':'s-open','In Progress':'s-prog','In Review':'s-rev','Done':'s-done'};return`<span class="ftm-badge ${m[s]||'s-open'}">${s}</span>`;}
+function ftmPB(p){const m={'High':'p-hi','Medium':'p-md','Low':'p-lo'};return`<span class="ftm-badge ${m[p]||'p-md'}">${p}</span>`;}
+function ftmFiltered(){
+  const q=document.getElementById('ftm-q').value.toLowerCase();
+  return ftmTasks.filter(t=>{
+    if(ftmFS!=='all'&&t.status!==ftmFS)return false;
+    if(ftmFP!=='all'&&t.prio!==ftmFP)return false;
+    if(ftmView==='mine'&&t.asgn!=='PB')return false;
+    if(ftmView==='overdue'&&(ftmDiff(t.due)>=0||t.status==='Done'))return false;
+    if(ftmView==='week'){const d=ftmDiff(t.due);if(d<0||d>7||t.status==='Done')return false;}
+    if(q&&![t.title,t.cat,t.thread,t.company].join(' ').toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+function ftmRender(){ftmCounts();ftmStats();ftmTasks2();ftmSideNav();}
+function ftmCounts(){
+  document.getElementById('sc-all').textContent=ftmTasks.filter(t=>t.status!=='Done').length;
+  document.getElementById('sc-mine').textContent=ftmTasks.filter(t=>t.asgn==='PB'&&t.status!=='Done').length;
+  document.getElementById('sc-ov').textContent=ftmTasks.filter(t=>ftmDiff(t.due)<0&&t.status!=='Done').length;
+  document.getElementById('sc-wk').textContent=ftmTasks.filter(t=>{const d=ftmDiff(t.due);return d>=0&&d<=7&&t.status!=='Done';}).length;
+}
+function ftmStats(){
+  const el=document.getElementById('ftm-stats');if(!el)return;
+  const s=s=>ftmTasks.filter(t=>t.status===s).length;
+  el.innerHTML=`<div class="ftm-stat"><div class="ftm-stat-label">Open</div><div class="ftm-stat-val">${s('Open')}</div><div class="ftm-stat-sub">to start</div></div><div class="ftm-stat"><div class="ftm-stat-label">In Progress</div><div class="ftm-stat-val">${s('In Progress')}</div><div class="ftm-stat-sub">active</div></div><div class="ftm-stat"><div class="ftm-stat-label">In Review</div><div class="ftm-stat-val">${s('In Review')}</div><div class="ftm-stat-sub">sign-off</div></div><div class="ftm-stat"><div class="ftm-stat-label">Done</div><div class="ftm-stat-val">${s('Done')}</div><div class="ftm-stat-sub">completed</div></div>`;
+}
+function ftmTasks2(){
+  const filtered=ftmFiltered();const el=document.getElementById('ftm-tlist');if(!el)return;
+  if(!filtered.length){el.innerHTML='<div class="ftm-empty">No tasks match current filters.</div>';return;}
+  const groups={};filtered.forEach(t=>{if(!groups[t.cat])groups[t.cat]=[];groups[t.cat].push(t);});
+  let h='';
+  for(const[cat,ts]of Object.entries(groups)){
+    const open=ts.filter(t=>t.status!=='Done').length;
+    h+=`<div class="ftm-group"><div class="ftm-ghdr"><span class="ftm-gtitle">${cat}</span><span class="ftm-gcnt">${open} open · ${ts.length} total</span></div><div class="ftm-table"><div class="ftm-row hdr"><div></div><div class="ftm-ch">Task</div><div class="ftm-ch">Thread</div><div class="ftm-ch">Status</div><div class="ftm-ch">Priority</div><div class="ftm-ch">Assignee</div><div class="ftm-ch">Due</div><div></div></div>`;
+    ts.forEach(t=>{
+      const m=FTM_TEAM.find(x=>x.id===t.asgn)||{id:'?',name:'—'};
+      const dc=ftmDC(t.due,t.status);
+      h+=`<div class="ftm-row" onclick="ftmOpenDP(${t.id})"><div class="ftm-check ${t.status==='Done'?'chk':''}" onclick="event.stopPropagation();ftmToggle(${t.id})">${t.status==='Done'?'✓':''}</div><div style="min-width:0"><div class="ftm-ttitle ${t.status==='Done'?'done':''}">${t.title}</div><div class="ftm-tsub">${t.company!=='—'?t.company+' · ':''}${t.thread}</div></div><div style="overflow:hidden"><span class="ftm-badge b-cat" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-flex">${t.thread.split('—')[0].trim()}</span></div>${ftmSB(t.status)}${ftmPB(t.prio)}<div class="ftm-asgn"><div class="ftm-aavatar">${m.id}</div><div class="ftm-aname">${m.name.split(' ')[0]}</div></div><div class="ftm-due ${dc}">${ftmFmt(t.due)}</div><button class="ftm-more" onclick="event.stopPropagation();ftmOpenDP(${t.id})">⋯</button></div>`;
+    });
+    h+=`<div class="ftm-addrow" onclick="ftmOpenModal('${cat}')"><span>+</span> Add task in ${cat}</div></div></div>`;
+  }
+  el.innerHTML=h;
+}
+function ftmSideNav(){
+  document.getElementById('ftm-cat-nav').innerHTML=FTM_CATS.map(c=>{const n=ftmTasks.filter(t=>t.cat===c&&t.status!=='Done').length;if(!n)return'';return`<div class="ftm-sitem" style="font-size:11px"><div class="ftm-sdot" style="background:#b8933e55;border:1px solid #b8933e"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${c}</span><span class="ftm-scnt">${n}</span></div>`;}).join('');
+  const active=[...new Set(ftmTasks.filter(t=>t.status!=='Done').map(t=>t.thread))].slice(0,4);
+  document.getElementById('ftm-thread-nav').innerHTML=active.map(th=>{const n=ftmTasks.filter(t=>t.thread===th&&t.status!=='Done').length;return`<div class="ftm-sitem" style="font-size:11px"><div class="ftm-sdot" style="background:#378add55;border:1px solid #378add"></div><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${th}</span><span class="ftm-scnt">${n}</span></div>`;}).join('');
+}
+function ftmToggle(id){const t=ftmTasks.find(t=>t.id===id);if(!t)return;t.status=t.status==='Done'?'Open':'Done';ftmRender();if(ftmSelId===id)ftmOpenDP(id);}
+function ftmOpenDP(id){
+  const t=ftmTasks.find(t=>t.id===id);if(!t)return;ftmSelId=id;
+  const m=FTM_TEAM.find(x=>x.id===t.asgn)||{name:'—'};
+  document.getElementById('dp-t').textContent=t.title;
+  document.getElementById('dp-b').innerHTML=ftmSB(t.status)+' '+ftmPB(t.prio);
+  document.getElementById('dp-as').textContent=m.name;
+  document.getElementById('dp-ct').textContent=t.cat;
+  document.getElementById('dp-th').textContent=t.thread;
+  document.getElementById('dp-co').textContent=t.company;
+  document.getElementById('dp-du').textContent=ftmFmt(t.due);
+  document.getElementById('dp-de').textContent=t.desc||'No description.';
+  document.getElementById('dp-no').value=t.notes||'';
+  document.getElementById('dp-no').oninput=function(){t.notes=this.value;};
+  document.getElementById('dp-ac').innerHTML=`<div class="ftm-actitem"><div class="ftm-actdot"></div><div><div class="ftm-acttxt">Task created</div><div class="ftm-acttime">${t.created}</div></div></div><div class="ftm-actitem"><div class="ftm-actdot"></div><div><div class="ftm-acttxt">Assigned to ${m.name}</div><div class="ftm-acttime">${t.created}</div></div></div>`;
+  document.getElementById('ftm-dp').classList.add('open');
+}
+function ftmCloseDP(){document.getElementById('ftm-dp').classList.remove('open');ftmSelId=null;}
+function ftmFilt(el,type,val){
+  const chips=document.querySelectorAll('.ftm-filters .ftm-chip');
+  const statusVals=['all','Open','In Progress','In Review','Done'];
+  const prioVals=['all','High','Medium','Low'];
+  chips.forEach(c=>{
+    const txt=c.textContent.trim();
+    if(type==='s'&&statusVals.includes(txt))c.classList.remove('active');
+    if(type==='p'&&prioVals.includes(txt))c.classList.remove('active');
+  });
+  el.classList.add('active');
+  if(type==='s')ftmFS=val;else ftmFP=val;
+  ftmRender();
+}
+function ftmSetView(v,el){
+  ftmView=v;
+  document.querySelectorAll('.ftm-sitem').forEach(i=>i.classList.remove('active'));
+  el.classList.add('active');
+  const titles={all:'All tasks',mine:'My tasks',overdue:'Overdue tasks',week:'Due this week'};
+  document.getElementById('ftm-vtitle').textContent=titles[v];
+  ftmRender();
+}
+function ftmOpenModal(presetCat){
+  document.getElementById('fm-ct').innerHTML=FTM_CATS.map(c=>`<option${c===presetCat?' selected':''}>${c}</option>`).join('');
+  document.getElementById('fm-th').innerHTML=FTM_THREADS.map(t=>`<option>${t}</option>`).join('');
+  document.getElementById('fm-co').innerHTML=FTM_COS.map(c=>`<option>${c}</option>`).join('');
+  document.getElementById('fm-as').innerHTML=FTM_TEAM.map(m=>`<option value="${m.id}">${m.name} (${m.role})</option>`).join('');
+  document.getElementById('fm-ti').value='';document.getElementById('fm-de').value='';document.getElementById('fm-du').value='';
+  document.getElementById('ftm-mo').classList.add('open');
+}
+function ftmCloseModal(){document.getElementById('ftm-mo').classList.remove('open');}
+function ftmSave(){
+  const title=document.getElementById('fm-ti').value.trim();if(!title){document.getElementById('fm-ti').focus();return;}
+  ftmTasks.unshift({id:ftmNid++,title,desc:document.getElementById('fm-de').value.trim(),cat:document.getElementById('fm-ct').value,thread:document.getElementById('fm-th').value,company:document.getElementById('fm-co').value,asgn:document.getElementById('fm-as').value,prio:document.getElementById('fm-pr').value,status:'Open',due:document.getElementById('fm-du').value,notes:'',created:new Date().toISOString().split('T')[0]});
+  ftmCloseModal();ftmRender();
+}
+document.getElementById('ftm-content').innerHTML='<div id="ftm-stats" class="ftm-stats"></div><div id="ftm-tlist"></div>';
+ftmRender();
+</script>
+</body>
+</html>
