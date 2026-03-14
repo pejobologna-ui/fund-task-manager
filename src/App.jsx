@@ -31,32 +31,47 @@ export default function App() {
 
   // Match "my tasks" by initials since tasks.assignee_id references the users table (short IDs)
   const myInitials = profile?.initials ?? ''
+  const myUserId   = session.user.id
+
+  // Personal view helpers — RLS guarantees: if a personal task is visible and not created by me,
+  // it must have been shared with me via task_shares.
+  const isMyPersonal     = t => t.visibility === 'personal' && t.created_by === myUserId
+  const isSharedWithMe   = t => t.visibility === 'personal' && t.created_by !== myUserId
 
   const counts = useMemo(() => ({
-    all:     tasks.filter(t => t.status !== 'Done').length,
-    mine:    tasks.filter(t => t.assignee?.initials === myInitials && t.status !== 'Done').length,
-    overdue: tasks.filter(t => dateDiff(t.due_date) < 0 && t.status !== 'Done').length,
-    week:    tasks.filter(t => { const d = dateDiff(t.due_date); return d >= 0 && d <= 7 && t.status !== 'Done' }).length,
-  }), [tasks, myInitials])
+    all:      tasks.filter(t => t.visibility !== 'personal' && t.status !== 'Done').length,
+    mine:     tasks.filter(t => t.visibility !== 'personal' && t.assignee?.initials === myInitials && t.status !== 'Done').length,
+    overdue:  tasks.filter(t => t.visibility !== 'personal' && dateDiff(t.due_date) < 0 && t.status !== 'Done').length,
+    week:     tasks.filter(t => t.visibility !== 'personal' && (() => { const d = dateDiff(t.due_date); return d >= 0 && d <= 7 })() && t.status !== 'Done').length,
+    personal: tasks.filter(t => isMyPersonal(t)).length,
+    shared:   tasks.filter(t => isSharedWithMe(t)).length,
+  }), [tasks, myInitials, myUserId])
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return tasks.filter(t => {
+      // Personal views: strict isolation — never mix with team tasks
+      if (view === 'personal') { if (!isMyPersonal(t))   return false }
+      else if (view === 'shared') { if (!isSharedWithMe(t)) return false }
+      else {
+        // All team views: exclude personal tasks entirely
+        if (t.visibility === 'personal') return false
+        if (view === 'mine'    && t.assignee?.initials !== myInitials) return false
+        if (view === 'overdue' && (dateDiff(t.due_date) >= 0 || t.status === 'Done')) return false
+        if (view === 'week') {
+          const d = dateDiff(t.due_date)
+          if (d < 0 || d > 7 || t.status === 'Done') return false
+        }
+      }
       if (filterStatus !== 'all' && t.status !== filterStatus) return false
       if (filterPrio   !== 'all' && t.priority !== filterPrio)  return false
-      if (view === 'mine'    && t.assignee?.initials !== myInitials) return false
-      if (view === 'overdue' && (dateDiff(t.due_date) >= 0 || t.status === 'Done')) return false
-      if (view === 'week') {
-        const d = dateDiff(t.due_date)
-        if (d < 0 || d > 7 || t.status === 'Done') return false
-      }
       if (q) {
         const hay = [t.title, t.category?.name, t.thread?.name, t.company?.name].join(' ').toLowerCase()
         if (!hay.includes(q)) return false
       }
       return true
     })
-  }, [tasks, view, filterStatus, filterPrio, query, myInitials])
+  }, [tasks, view, filterStatus, filterPrio, query, myInitials, myUserId])
 
   const selectedTask = tasks.find(t => t.id === selectedId) ?? null
 
@@ -65,7 +80,14 @@ export default function App() {
     setModal(true)
   }
 
-  const VIEW_TITLES = { all: 'All tasks', mine: 'My tasks', overdue: 'Overdue tasks', week: 'Due this week' }
+  const VIEW_TITLES = {
+    all:      'All tasks',
+    mine:     'My tasks',
+    overdue:  'Overdue tasks',
+    week:     'Due this week',
+    personal: 'My personal tasks',
+    shared:   'Shared with me',
+  }
 
   return (
     <div className="ftm">

@@ -1,11 +1,16 @@
 import { useMemo } from 'react'
 import { useAuth } from '../context/AuthContext'
 
-const VIEWS = [
+const TEAM_VIEWS = [
   { key: 'all',     label: 'All tasks',      color: '#b8933e' },
   { key: 'mine',    label: 'My tasks',       color: '#5dcaa5' },
   { key: 'overdue', label: 'Overdue',        color: '#e24b4a' },
   { key: 'week',    label: 'Due this week',  color: '#378add' },
+]
+
+const PERSONAL_VIEWS = [
+  { key: 'personal', label: 'My personal tasks', color: '#9b71d4' },
+  { key: 'shared',   label: 'Shared with me',    color: '#d47171' },
 ]
 
 const ROLE_LABELS = {
@@ -52,8 +57,23 @@ export default function Sidebar({ view, onSetView, counts, tasks, profile }) {
       </div>
 
       <div className="ftm-snav">
-        <div className="ftm-slabel">Views</div>
-        {VIEWS.map(v => (
+        <div className="ftm-slabel">Team</div>
+        {TEAM_VIEWS.map(v => (
+          <div
+            key={v.key}
+            className={`ftm-sitem${view === v.key ? ' active' : ''}`}
+            onClick={() => onSetView(v.key)}
+          >
+            <div className="ftm-sdot" style={{ background: v.color }} />
+            {v.label}
+            <span className="ftm-scnt">{counts[v.key] ?? 0}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="ftm-snav">
+        <div className="ftm-slabel">Personal</div>
+        {PERSONAL_VIEWS.map(v => (
           <div
             key={v.key}
             className={`ftm-sitem${view === v.key ? ' active' : ''}`}
