@@ -17,6 +17,7 @@ export function useTasks() {
       .from('tasks')
       .select(`
         id, title, description, status, priority, due_date, notes, created_at,
+        visibility, created_by,
         category:categories(id, name),
         thread:threads(id, name),
         company:companies(id, name, type),
@@ -94,10 +95,29 @@ export function useLookups() {
 }
 
 /**
- * Creates a new task and optionally logs an activity entry.
+ * Fetches all profiles (for the share-with picker in the new task modal).
  */
-export async function createTask(fields) {
-  const { data, error } = await supabase
+export function useProfiles() {
+  const [profiles, setProfiles] = useState([])
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('profiles')
+      .select('id, full_name, initials, role')
+      .order('full_name')
+      .then(({ data }) => { setProfiles(data ?? []); setLoading(false) })
+  }, [])
+
+  return { profiles, loading }
+}
+
+/**
+ * Creates a new task and inserts task_shares rows for personal tasks.
+ * shareWithIds: array of profile UUIDs to share with (may be empty).
+ */
+export async function createTaskWithShares(fields, shareWithIds = []) {
+  const { data: task, error: taskError } = await supabase
     .from('tasks')
     .insert([{
       title:       fields.title,
@@ -106,13 +126,15 @@ export async function createTask(fields) {
       priority:    fields.priority,
       due_date:    fields.due_date || null,
       notes:       '',
+      visibility:  fields.visibility ?? 'team',
       category_id: fields.category_id,
-      thread_id:   fields.thread_id,
-      company_id:  fields.company_id || null,
-      assignee_id: fields.assignee_id,
+      thread_id:   fields.thread_id   || null,
+      company_id:  fields.company_id  || null,
+      assignee_id: fields.assignee_id || null,
     }])
     .select(`
       id, title, description, status, priority, due_date, notes, created_at,
+      visibility, created_by,
       category:categories(id, name),
       thread:threads(id, name),
       company:companies(id, name, type),
@@ -120,5 +142,13 @@ export async function createTask(fields) {
     `)
     .single()
 
-  return { data, error }
+  if (taskError) return { data: null, error: taskError }
+
+  if (shareWithIds.length > 0) {
+    const rows = shareWithIds.map(uid => ({ task_id: task.id, shared_with: uid }))
+    const { error: sharesError } = await supabase.from('task_shares').insert(rows)
+    if (sharesError) return { data: task, error: sharesError }
+  }
+
+  return { data: task, error: null }
 }

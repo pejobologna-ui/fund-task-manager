@@ -149,6 +149,25 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-gbtn { padding: 6px 12px; border-radius: var(--radius); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: transparent; color: var(--muted); transition: all 0.12s; }
 .ftm-gbtn:hover { background: var(--surface2); color: var(--text); }
 
+/* Visibility toggle */
+.ftm-vis-toggle { display: flex; gap: 0; border: 0.5px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+.ftm-vis-btn { flex: 1; padding: 7px 10px; font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; border: none; background: var(--surface2); color: var(--muted); transition: all 0.12s; }
+.ftm-vis-btn:first-child { border-right: 0.5px solid var(--border2); }
+.ftm-vis-btn.active { background: var(--navy); color: #fff; }
+.ftm-vis-btn.active.personal { background: #6b3fa0; }
+
+/* Share-with picker */
+.ftm-share-picker { display: flex; flex-direction: column; gap: 4px; border: 0.5px solid var(--border2); border-radius: var(--radius); overflow: hidden; }
+.ftm-share-row { display: flex; align-items: center; gap: 9px; padding: 8px 10px; cursor: pointer; transition: background 0.1s; }
+.ftm-share-row:hover { background: var(--surface2); }
+.ftm-share-row.selected { background: #f0ebfa; }
+.ftm-share-avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--navy2); color: #fff; font-size: 9px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ftm-share-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.ftm-share-name { font-size: 12px; color: var(--text); }
+.ftm-share-role { font-size: 10px; color: var(--light); }
+.ftm-share-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; color: var(--light); }
+.ftm-share-check.checked { background: #6b3fa0; border-color: #6b3fa0; color: #fff; }
+
 /* Misc */
 .ftm-empty { text-align: center; padding: 32px 16px; color: var(--light); font-size: 12px; }
 .ftm-loading { text-align: center; padding: 48px 16px; color: var(--light); font-size: 12px; }
