@@ -28,7 +28,10 @@ export function useTasks() {
     if (error) {
       setError(error.message)
     } else {
-      setTasks(data)
+      // Deduplicate by id — RLS policies that join through task_shares can cause
+      // PostgREST to return one row per matching share row.
+      const seen = new Set()
+      setTasks(data.filter(t => seen.has(t.id) ? false : seen.add(t.id)))
     }
     setLoading(false)
   }, [])
