@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useAuth } from '../context/AuthContext'
 
 const VIEWS = [
   { key: 'all',     label: 'All tasks',      color: '#b8933e' },
@@ -7,7 +8,16 @@ const VIEWS = [
   { key: 'week',    label: 'Due this week',  color: '#378add' },
 ]
 
-export default function Sidebar({ view, onSetView, counts, tasks }) {
+const ROLE_LABELS = {
+  gp:         'General Partner',
+  associate:  'Associate',
+  analyst:    'Analyst',
+  viewer:     'Viewer',
+}
+
+export default function Sidebar({ view, onSetView, counts, tasks, profile }) {
+  const { signOut } = useAuth()
+
   const catCounts = useMemo(() => {
     const map = {}
     tasks.forEach(t => {
@@ -29,6 +39,10 @@ export default function Sidebar({ view, onSetView, counts, tasks }) {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
   }, [tasks])
+
+  const displayName = profile?.full_name ?? '—'
+  const initials    = profile?.initials  ?? '?'
+  const roleLabel   = ROLE_LABELS[profile?.role] ?? profile?.role ?? ''
 
   return (
     <aside className="ftm-sidebar">
@@ -80,11 +94,32 @@ export default function Sidebar({ view, onSetView, counts, tasks }) {
 
       <div className="ftm-sbottom">
         <div className="ftm-user">
-          <div className="ftm-avatar">PB</div>
-          <div>
-            <div className="ftm-uname">Pietro B.</div>
-            <div className="ftm-urole">General Partner</div>
+          <div className="ftm-avatar">{initials}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="ftm-uname" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {displayName}
+            </div>
+            <div className="ftm-urole">{roleLabel}</div>
           </div>
+          <button
+            onClick={signOut}
+            title="Sign out"
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'rgba(255,255,255,0.3)',
+              fontSize: 14,
+              padding: '2px 4px',
+              borderRadius: 4,
+              lineHeight: 1,
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}
+          >
+            ↪
+          </button>
         </div>
       </div>
     </aside>

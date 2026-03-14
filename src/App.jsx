@@ -5,10 +5,13 @@ import FilterBar from './components/FilterBar'
 import TaskList from './components/TaskList'
 import DetailPanel from './components/DetailPanel'
 import NewTaskModal from './components/NewTaskModal'
+import LoginPage from './pages/LoginPage'
 import { useTasks } from './hooks/useTasks'
+import { useAuth } from './context/AuthContext'
 import { dateDiff } from './utils'
 
 export default function App() {
+  const { session, profile, loading: authLoading } = useAuth()
   const { tasks, loading, error, refetch, toggleDone, updateNotes } = useTasks()
 
   const [view, setView]       = useState('all')
@@ -19,20 +22,29 @@ export default function App() {
   const [modalOpen, setModal] = useState(false)
   const [modalPresetCat, setModalPresetCat] = useState(null)
 
-  // Sidebar counts (all non-done tasks)
+  if (authLoading) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="ftm-loading">Loading…</div>
+    </div>
+  )
+  if (!session) return <LoginPage />
+
+  // Match "my tasks" by initials since tasks.assignee_id references the users table (short IDs)
+  const myInitials = profile?.initials ?? ''
+
   const counts = useMemo(() => ({
     all:     tasks.filter(t => t.status !== 'Done').length,
-    mine:    tasks.filter(t => t.assignee?.id === 'PB' && t.status !== 'Done').length,
+    mine:    tasks.filter(t => t.assignee?.initials === myInitials && t.status !== 'Done').length,
     overdue: tasks.filter(t => dateDiff(t.due_date) < 0 && t.status !== 'Done').length,
     week:    tasks.filter(t => { const d = dateDiff(t.due_date); return d >= 0 && d <= 7 && t.status !== 'Done' }).length,
-  }), [tasks])
+  }), [tasks, myInitials])
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return tasks.filter(t => {
       if (filterStatus !== 'all' && t.status !== filterStatus) return false
       if (filterPrio   !== 'all' && t.priority !== filterPrio)  return false
-      if (view === 'mine'    && t.assignee?.id !== 'PB')         return false
+      if (view === 'mine'    && t.assignee?.initials !== myInitials) return false
       if (view === 'overdue' && (dateDiff(t.due_date) >= 0 || t.status === 'Done')) return false
       if (view === 'week') {
         const d = dateDiff(t.due_date)
@@ -44,7 +56,7 @@ export default function App() {
       }
       return true
     })
-  }, [tasks, view, filterStatus, filterPrio, query])
+  }, [tasks, view, filterStatus, filterPrio, query, myInitials])
 
   const selectedTask = tasks.find(t => t.id === selectedId) ?? null
 
@@ -62,6 +74,7 @@ export default function App() {
         onSetView={setView}
         counts={counts}
         tasks={tasks}
+        profile={profile}
       />
 
       <div className="ftm-main">
@@ -102,10 +115,7 @@ export default function App() {
         <NewTaskModal
           presetCategory={modalPresetCat}
           onClose={() => setModal(false)}
-          onCreated={task => {
-            refetch()
-            setModal(false)
-          }}
+          onCreated={() => { refetch(); setModal(false) }}
         />
       )}
     </div>
