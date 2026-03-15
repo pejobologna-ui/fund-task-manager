@@ -218,7 +218,7 @@ export default function ThreadPage({
         <div className="ftm-thread-tasks">
           <TaskList
             tasks={tasks}
-            allTasks={allTasks}
+            allTasks={tasks}
             loading={false}
             error={null}
             selectedId={selectedId}
