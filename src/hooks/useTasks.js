@@ -133,6 +133,66 @@ export function useProfiles() {
 }
 
 /**
+ * Fetches a single thread with its steps for the Thread detail page.
+ * Exposes add / update-status / reorder mutations.
+ */
+export function useThread(threadId) {
+  const [thread, setThread] = useState(null)
+  const [steps,  setSteps]  = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchThread = useCallback(async () => {
+    if (!threadId) return
+    setLoading(true)
+    const [{ data: th }, { data: st }] = await Promise.all([
+      supabase
+        .from('threads')
+        .select('id, name, category, description, visibility, created_at, company:companies(id, name, type)')
+        .eq('id', threadId)
+        .single(),
+      supabase
+        .from('thread_steps')
+        .select('id, thread_id, title, description, "order", status, due_date, created_at, assignee:profiles!assigned_to(id, full_name, initials)')
+        .eq('thread_id', threadId)
+        .order('"order"', { ascending: true }),
+    ])
+    setThread(th ?? null)
+    setSteps(st ?? [])
+    setLoading(false)
+  }, [threadId])
+
+  useEffect(() => { fetchThread() }, [fetchThread])
+
+  const addStep = useCallback(async (title) => {
+    const nextOrder = steps.length > 0 ? Math.max(...steps.map(s => s.order)) + 1 : 0
+    const { data, error } = await supabase
+      .from('thread_steps')
+      .insert({ thread_id: threadId, title, order: nextOrder, status: 'pending' })
+      .select('id, thread_id, title, description, "order", status, due_date, created_at, assignee:profiles!assigned_to(id, full_name, initials)')
+      .single()
+    if (!error) setSteps(prev => [...prev, data])
+    return error
+  }, [threadId, steps])
+
+  const STATUS_CYCLE = { pending: 'in_progress', in_progress: 'completed', completed: 'pending' }
+  const cycleStepStatus = useCallback(async (stepId, currentStatus) => {
+    const next = STATUS_CYCLE[currentStatus] ?? 'pending'
+    const { error } = await supabase.from('thread_steps').update({ status: next }).eq('id', stepId)
+    if (!error) setSteps(prev => prev.map(s => s.id === stepId ? { ...s, status: next } : s))
+    return error
+  }, [])
+
+  const reorderSteps = useCallback(async (reordered) => {
+    setSteps(reordered) // optimistic
+    await Promise.all(reordered.map((s, i) =>
+      supabase.from('thread_steps').update({ order: i }).eq('id', s.id)
+    ))
+  }, [])
+
+  return { thread, steps, loading, refetch: fetchThread, addStep, cycleStepStatus, reorderSteps }
+}
+
+/**
  * Creates a new task and inserts task_shares rows for personal tasks.
  * shareWithIds: array of profile UUIDs to share with (may be empty).
  */

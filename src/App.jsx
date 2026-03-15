@@ -5,6 +5,7 @@ import FilterBar from './components/FilterBar'
 import TaskList from './components/TaskList'
 import DetailPanel from './components/DetailPanel'
 import NewTaskModal from './components/NewTaskModal'
+import ThreadPage from './pages/ThreadPage'
 import LoginPage from './pages/LoginPage'
 import { useTasks } from './hooks/useTasks'
 import { useAuth } from './context/AuthContext'
@@ -14,8 +15,9 @@ export default function App() {
   const { session, profile, loading: authLoading } = useAuth()
   const { tasks, loading, error, refetch, toggleDone, updateNotes, updateField } = useTasks()
 
-  const [view, setView]       = useState('all')
-  const [navFilter, setNavFilter] = useState(null)  // { type: 'category'|'company'|'thread', id, name }
+  const [view, setView]         = useState('all')
+  const [navFilter, setNavFilter] = useState(null)   // { type: 'category'|'company'|'thread', id, name }
+  const [threadPage, setThreadPage] = useState(null) // threadId string | null
   const [filterStatus, setFS] = useState('all')
   const [filterPrio, setFP]   = useState('all')
   const [query, setQuery]     = useState('')
@@ -36,17 +38,25 @@ export default function App() {
   const isMyPersonal   = t => t.visibility === 'personal' && t.created_by === myUserId
   const isSharedWithMe = t => t.visibility === 'personal' && t.created_by !== myUserId
 
-  // Switching a team/personal view always clears the nav filter
+  // Switching a team/personal view always clears the nav filter and thread page
   function handleSetView(v) {
     setView(v)
     setNavFilter(null)
+    setThreadPage(null)
   }
 
-  // Clicking the already-active filter toggles it off
+  // Clicking the already-active filter toggles it off; clears thread page
   function handleNavFilter(f) {
+    setThreadPage(null)
     setNavFilter(prev =>
       prev?.type === f.type && prev?.id === f.id ? null : f
     )
+  }
+
+  // Opens the thread detail page
+  function handleOpenThread(id) {
+    setThreadPage(id)
+    setNavFilter(null)
   }
 
   const counts = useMemo(() => ({
@@ -114,38 +124,56 @@ export default function App() {
         onSetView={handleSetView}
         navFilter={navFilter}
         onNavFilter={handleNavFilter}
+        onOpenThread={handleOpenThread}
         counts={counts}
         tasks={tasks}
         profile={profile}
       />
 
-      <div className="ftm-main">
-        <Header
-          title={pageTitle}
-          query={query}
-          onQuery={setQuery}
-          onNewTask={() => openNewTask()}
-        />
-        <FilterBar
-          filterStatus={filterStatus}
-          filterPrio={filterPrio}
-          onStatus={setFS}
-          onPrio={setFP}
-        />
-        <div className="ftm-content">
-          <TaskList
-            tasks={filtered}
+      {threadPage ? (
+        <div className="ftm-main">
+          <ThreadPage
+            threadId={threadPage}
+            tasks={tasks.filter(t => t.thread?.id === threadPage)}
             allTasks={tasks}
-            loading={loading}
-            error={error}
             selectedId={selectedId}
             onSelect={select}
             onToggle={toggleDone}
             onUpdate={updateField}
-            onAddInCategory={openNewTask}
+            onBack={() => setThreadPage(null)}
+            onOpenThread={handleOpenThread}
           />
         </div>
-      </div>
+      ) : (
+        <div className="ftm-main">
+          <Header
+            title={pageTitle}
+            query={query}
+            onQuery={setQuery}
+            onNewTask={() => openNewTask()}
+          />
+          <FilterBar
+            filterStatus={filterStatus}
+            filterPrio={filterPrio}
+            onStatus={setFS}
+            onPrio={setFP}
+          />
+          <div className="ftm-content">
+            <TaskList
+              tasks={filtered}
+              allTasks={tasks}
+              loading={loading}
+              error={error}
+              selectedId={selectedId}
+              onSelect={select}
+              onToggle={toggleDone}
+              onUpdate={updateField}
+              onAddInCategory={openNewTask}
+              onOpenThread={handleOpenThread}
+            />
+          </div>
+        </div>
+      )}
 
       <DetailPanel
         task={selectedTask}

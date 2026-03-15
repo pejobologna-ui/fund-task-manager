@@ -20,7 +20,7 @@ const ROLE_LABELS = {
   viewer:    'Viewer',
 }
 
-export default function Sidebar({ view, onSetView, navFilter, onNavFilter, counts, tasks, profile }) {
+export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpenThread, counts, tasks, profile }) {
   const { signOut } = useAuth()
   const [collapsed, setCollapsed] = useState({ categories: false, companies: false, threads: false })
 
@@ -189,8 +189,8 @@ export default function Sidebar({ view, onSetView, navFilter, onNavFilter, count
         {!collapsed.threads && threads.map(th => (
           <div
             key={th.id}
-            className={`ftm-sitem${isNavActive('thread', th.id) ? ' active' : ''}`}
-            onClick={() => onNavFilter({ type: 'thread', id: th.id, name: th.name })}
+            className="ftm-sitem"
+            onClick={() => onOpenThread(th.id)}
           >
             <div className="ftm-sdot" style={{ background: '#378add55', border: '1px solid #378add' }} />
             <span className="ftm-sitem-label">{th.name}</span>

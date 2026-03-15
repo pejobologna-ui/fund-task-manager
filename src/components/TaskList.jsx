@@ -85,7 +85,7 @@ function StatsBar({ tasks }) {
   )
 }
 
-function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users, categories, companies, threads }) {
+function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users, categories, companies, threads, onOpenThread }) {
   const [openCell, setOpenCell] = useState(null)
   const isDone = task.status === 'Done'
   const dc = dueCls(task.due_date, task.status)
@@ -172,6 +172,15 @@ function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users, categori
           trigger={<span className="ftm-badge b-thread ftm-label-badge">{task.thread?.name ?? 'No thread'}</span>}
         >
           <div className="ftm-pop-list">
+            {/* Navigate to thread detail page */}
+            {task.thread && (
+              <div
+                className="ftm-pop-item ftm-pop-navigate"
+                onClick={e => { e.stopPropagation(); close(); onOpenThread(task.thread.id) }}
+              >
+                View thread →
+              </div>
+            )}
             <div
               className={`ftm-pop-item${!task.thread ? ' active' : ''}`}
               onClick={e => { e.stopPropagation(); close(); onUpdate(task.id, { thread_id: null }, { thread: null }) }}
@@ -289,7 +298,7 @@ function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users, categori
   )
 }
 
-export default function TaskList({ tasks, allTasks, loading, error, selectedId, onSelect, onToggle, onUpdate, onAddInCategory }) {
+export default function TaskList({ tasks, allTasks, loading, error, selectedId, onSelect, onToggle, onUpdate, onAddInCategory, onOpenThread }) {
   const { users, categories, companies, threads } = useLookups()
 
   const groups = useMemo(() => {
@@ -342,6 +351,7 @@ export default function TaskList({ tasks, allTasks, loading, error, selectedId, 
                   categories={categories}
                   companies={companies}
                   threads={threads}
+                  onOpenThread={onOpenThread}
                 />
               ))}
               <div className="ftm-addrow" onClick={() => onAddInCategory(cat)}>
