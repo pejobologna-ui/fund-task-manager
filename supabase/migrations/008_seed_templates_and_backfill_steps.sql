@@ -18,9 +18,18 @@ WHERE id NOT IN (
   ORDER BY name, id DESC
 );
 
--- Add unique constraint so future upserts are clean
-ALTER TABLE thread_templates
-  ADD CONSTRAINT IF NOT EXISTS thread_templates_name_key UNIQUE (name);
+-- Add unique constraint so future upserts are clean (IF NOT EXISTS not
+-- supported for constraints; use pg_constraint check instead)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'thread_templates_name_key'
+      AND conrelid = 'thread_templates'::regclass
+  ) THEN
+    ALTER TABLE thread_templates ADD CONSTRAINT thread_templates_name_key UNIQUE (name);
+  END IF;
+END $$;
 
 
 -- ── 1. Upsert all templates ───────────────────────────────────
