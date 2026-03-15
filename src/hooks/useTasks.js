@@ -254,18 +254,21 @@ export function useManage() {
   const [categories, setCategories] = useState([])
   const [companies,  setCompanies]  = useState([])
   const [templates,  setTemplates]  = useState([])
+  const [funds,      setFunds]      = useState([])
   const [loading, setLoading]       = useState(true)
 
   const refetch = useCallback(async () => {
     setLoading(true)
-    const [{ data: cats }, { data: cos }, { data: tpls }] = await Promise.all([
+    const [{ data: cats }, { data: cos }, { data: tpls }, { data: fds }] = await Promise.all([
       supabase.from('activity_categories').select('id, name, visibility, created_by').order('name'),
-      supabase.from('companies').select('id, name, type, fund').order('name'),
+      supabase.from('companies').select('id, name, type, fund, fund_id').order('name'),
       supabase.from('thread_templates').select('id, name, category, steps').order('name'),
+      supabase.from('funds').select('id, name').order('name'),
     ])
     setCategories(cats ?? [])
     setCompanies(cos   ?? [])
     setTemplates(tpls  ?? [])
+    setFunds(fds       ?? [])
     setLoading(false)
   }, [])
 
@@ -310,7 +313,7 @@ export function useManage() {
     setCompanies(prev => [...prev, tmp])
     const { data, error } = await supabase
       .from('companies').insert(fields)
-      .select('id, name, type, fund').single()
+      .select('id, name, type, fund, fund_id').single()
     if (error) { setCompanies(prev => prev.filter(c => c.id !== tmp.id)); return error }
     setCompanies(prev => prev.map(c => c.id === tmp.id ? data : c))
     return null
@@ -326,6 +329,34 @@ export function useManage() {
   const deleteCompany = useCallback(async (id) => {
     setCompanies(prev => prev.filter(c => c.id !== id))
     const { error } = await supabase.from('companies').delete().eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  // ── Funds ────────────────────────────────────────────────────────────────
+  const addFund = useCallback(async (name) => {
+    const tmp = { id: `tmp-${Date.now()}`, name }
+    setFunds(prev => [...prev, tmp])
+    const { data, error } = await supabase
+      .from('funds').insert({ name })
+      .select('id, name').single()
+    if (error) { setFunds(prev => prev.filter(f => f.id !== tmp.id)); return error }
+    setFunds(prev => prev.map(f => f.id === tmp.id ? data : f))
+    return null
+  }, [])
+
+  const renameFund = useCallback(async (id, name) => {
+    setFunds(prev => prev.map(f => f.id === id ? { ...f, name } : f))
+    const { error } = await supabase.from('funds').update({ name }).eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  const deleteFund = useCallback(async (id) => {
+    // companies with this fund_id will have fund_id set to null (ON DELETE SET NULL)
+    setFunds(prev => prev.filter(f => f.id !== id))
+    setCompanies(prev => prev.map(c => c.fund_id === id ? { ...c, fund_id: null } : c))
+    const { error } = await supabase.from('funds').delete().eq('id', id)
     if (error) { refetch(); return error }
     return null
   }, [refetch])
@@ -357,9 +388,10 @@ export function useManage() {
   }, [refetch])
 
   return {
-    categories, companies, templates, loading, refetch,
+    categories, companies, templates, funds, loading, refetch,
     addCategory, renameCategory, updateCategoryVisibility, deleteCategory,
     addCompany, updateCompany, deleteCompany,
+    addFund, renameFund, deleteFund,
     addTemplate, updateTemplate, deleteTemplate,
   }
 }
