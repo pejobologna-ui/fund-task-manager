@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
-import { useThread } from '../hooks/useTasks'
+import { useThread, useLookups } from '../hooks/useTasks'
 import TaskList from '../components/TaskList'
+import StepEditPopover from '../components/StepEditPopover'
 
 const STEP_STATUS = {
   completed:   { bg: '#eaf3de', color: '#3b6d11', label: 'Done'        },
@@ -10,7 +11,7 @@ const STEP_STATUS = {
 
 function StepCard({
   step, index, isActive, isDragging, isDragOver,
-  onDragStart, onDragOver, onDrop, onDragEnd, onCycleStatus,
+  onDragStart, onDragOver, onDrop, onDragEnd, onCycleStatus, onEditStep,
 }) {
   const ss      = STEP_STATUS[step.status] ?? STEP_STATUS.pending
   const isDone  = step.status === 'completed'
@@ -70,6 +71,13 @@ function StepCard({
         )}
       </div>
 
+      {/* Edit button — shown on hover via CSS */}
+      <button
+        className="ftm-step-edit-btn"
+        title="Edit step"
+        onClick={e => { e.stopPropagation(); onEditStep?.(step.id) }}
+      >✎</button>
+
       {/* Drag handle — shown on hover via CSS */}
       <div className="ftm-step-drag-handle" title="Drag to reorder">⠿</div>
     </div>
@@ -79,15 +87,17 @@ function StepCard({
 export default function ThreadPage({
   threadId, tasks, allTasks,
   selectedId, onSelect, onToggle, onUpdate,
-  onBack, onOpenThread,
+  onBack, onOpenThread, onEditThread, myUserId,
 }) {
-  const { thread, steps, loading, addStep, cycleStepStatus, reorderSteps } = useThread(threadId)
+  const { thread, steps, loading, addStep, cycleStepStatus, reorderSteps, updateStep, deleteStep } = useThread(threadId)
+  const { users } = useLookups()
 
-  const [dragIdx,     setDragIdx]     = useState(null)
-  const [dragOverIdx, setDragOverIdx] = useState(null)
-  const [addingStep,  setAddingStep]  = useState(false)
-  const [newTitle,    setNewTitle]    = useState('')
-  const [saving,      setSaving]      = useState(false)
+  const [dragIdx,       setDragIdx]       = useState(null)
+  const [dragOverIdx,   setDragOverIdx]   = useState(null)
+  const [addingStep,    setAddingStep]    = useState(false)
+  const [newTitle,      setNewTitle]      = useState('')
+  const [saving,        setSaving]        = useState(false)
+  const [editingStepId, setEditingStepId] = useState(null)
 
   // First non-completed step index
   const activeIdx = steps.findIndex(s => s.status !== 'completed')
@@ -126,6 +136,11 @@ export default function ThreadPage({
   const doneCount  = steps.filter(s => s.status === 'completed').length
   const totalCount = steps.length
 
+  // Ownership: team threads editable by all; personal/restricted only by creator
+  const canEdit = thread
+    ? thread.visibility === 'team' || thread.created_by === null || thread.created_by === myUserId
+    : false
+
   return (
     <div className="ftm-thread-page">
 
@@ -140,9 +155,16 @@ export default function ThreadPage({
             {thread.description && <span className="ftm-thread-desc">{thread.description}</span>}
           </div>
         </div>
-        <button className="ftm-btn" style={{ marginLeft: 'auto', flexShrink: 0 }} onClick={() => setAddingStep(true)}>
-          + Add step
-        </button>
+        <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
+          {canEdit && (
+            <button className="ftm-gbtn" onClick={() => onEditThread?.(threadId)}>
+              ✎ Edit thread
+            </button>
+          )}
+          <button className="ftm-btn" onClick={() => setAddingStep(true)}>
+            + Add step
+          </button>
+        </div>
       </div>
 
       {/* ── Pipeline ── */}
@@ -157,21 +179,33 @@ export default function ThreadPage({
         <div className="ftm-pipeline-wrap">
           <div className="ftm-pipeline">
             {steps.map((step, i) => (
-              <div key={step.id} className="ftm-step-wrap">
-                <StepCard
-                  step={step}
-                  index={i}
-                  isActive={i === activeIdx}
-                  isDragging={dragIdx === i}
-                  isDragOver={dragOverIdx === i}
-                  onDragStart={() => setDragIdx(i)}
-                  onDragOver={() => setDragOverIdx(i)}
-                  onDrop={() => handleDrop(i)}
-                  onDragEnd={handleDragEnd}
-                  onCycleStatus={() => cycleStepStatus(step.id, step.status)}
-                />
-                {i < steps.length - 1 && (
-                  <div className={`ftm-step-connector${step.status === 'completed' ? ' done' : ''}`} />
+              <div key={step.id} className="ftm-step-wrap" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <StepCard
+                    step={step}
+                    index={i}
+                    isActive={i === activeIdx}
+                    isDragging={dragIdx === i}
+                    isDragOver={dragOverIdx === i}
+                    onDragStart={() => setDragIdx(i)}
+                    onDragOver={() => setDragOverIdx(i)}
+                    onDrop={() => handleDrop(i)}
+                    onDragEnd={handleDragEnd}
+                    onCycleStatus={() => cycleStepStatus(step.id, step.status)}
+                    onEditStep={id => setEditingStepId(prev => prev === id ? null : id)}
+                  />
+                  {i < steps.length - 1 && (
+                    <div className={`ftm-step-connector${step.status === 'completed' ? ' done' : ''}`} />
+                  )}
+                </div>
+                {editingStepId === step.id && (
+                  <StepEditPopover
+                    step={step}
+                    users={users}
+                    onSave={async (stepId, fields) => { await updateStep(stepId, fields) }}
+                    onDelete={async (stepId) => { await deleteStep(stepId); setEditingStepId(null) }}
+                    onClose={() => setEditingStepId(null)}
+                  />
                 )}
               </div>
             ))}

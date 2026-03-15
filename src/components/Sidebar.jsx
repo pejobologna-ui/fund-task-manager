@@ -20,7 +20,7 @@ const ROLE_LABELS = {
   viewer:    'Viewer',
 }
 
-export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpenThread, onNewThread, counts, tasks, profile }) {
+export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpenThread, onNewThread, onEditThread, onManage, counts, tasks, profile }) {
   const { signOut } = useAuth()
   const [collapsed, setCollapsed] = useState({ categories: false, companies: false, threads: false })
 
@@ -199,6 +199,11 @@ export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpe
           >
             <div className="ftm-sdot" style={{ background: '#378add55', border: '1px solid #378add' }} />
             <span className="ftm-sitem-label">{th.name}</span>
+            <button
+              className="ftm-sedit-btn"
+              title="Edit thread"
+              onClick={e => { e.stopPropagation(); onEditThread?.(th.id) }}
+            >✎</button>
             <div className="ftm-sprog">
               <span className="ftm-sprog-txt">{th.done}/{th.total}</span>
               <div className="ftm-sprog-track">
@@ -221,6 +226,11 @@ export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpe
             </div>
             <div className="ftm-urole">{roleLabel}</div>
           </div>
+          <button
+            className="ftm-sgear-btn"
+            onClick={onManage}
+            title="Manage categories, companies & templates"
+          >⚙</button>
           <button
             onClick={signOut}
             title="Sign out"

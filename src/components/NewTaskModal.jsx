@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useLookups, useProfiles, createTaskWithShares } from '../hooks/useTasks'
 import { useAuth } from '../context/AuthContext'
 import { PRIORITIES } from '../constants'
+import VisibilityToggle from './VisibilityToggle'
 
 const ROLE_LABELS = { gp: 'GP', associate: 'Associate', analyst: 'Analyst', viewer: 'Viewer' }
 
@@ -42,6 +43,8 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
     if (v === 'team') setShareWith([])
   }
 
+  const needsSharePicker = form.visibility === 'personal' || form.visibility === 'restricted'
+
   function toggleShare(profileId) {
     setShareWith(prev =>
       prev.includes(profileId) ? prev.filter(id => id !== profileId) : [...prev, profileId]
@@ -54,6 +57,7 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
     if (form.visibility === 'team' && !form.assignee_id) {
       setErr('Assignee is required for team tasks.'); return
     }
+    // restricted / personal tasks don't require an assignee
     // thread_id and company_id are optional — empty string = null (No thread / No company)
     setSaving(true)
     setErr(null)
@@ -65,8 +69,6 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
 
   // Exclude the current auth user from the share picker
   const shareableProfiles = profiles.filter(p => p.id !== session?.user?.id)
-
-  const isPersonal = form.visibility === 'personal'
 
   return (
     <div className="ftm-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -85,22 +87,7 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
               {/* Visibility toggle — full width, first field */}
               <div className="ftm-ff full">
                 <label className="ftm-flbl">Visibility</label>
-                <div className="ftm-vis-toggle">
-                  <button
-                    type="button"
-                    className={`ftm-vis-btn${!isPersonal ? ' active' : ''}`}
-                    onClick={() => setVisibility('team')}
-                  >
-                    🏢 Team
-                  </button>
-                  <button
-                    type="button"
-                    className={`ftm-vis-btn${isPersonal ? ' active personal' : ''}`}
-                    onClick={() => setVisibility('personal')}
-                  >
-                    🔒 Personal
-                  </button>
-                </div>
+                <VisibilityToggle value={form.visibility} onChange={setVisibility} />
               </div>
 
               <div className="ftm-ff full">
@@ -133,9 +120,9 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
                 </select>
               </div>
 
-              {/* Assignee: required for team, optional for personal */}
+              {/* Assignee: required for team, optional otherwise */}
               <div className="ftm-ff">
-                <label className="ftm-flbl">Assignee{isPersonal ? ' (optional)' : ''}</label>
+                <label className="ftm-flbl">Assignee{form.visibility !== 'team' ? ' (optional)' : ''}</label>
                 <select className="ftm-fsel" value={form.assignee_id} onChange={e => set('assignee_id', e.target.value)}>
                   <option value="">Select…</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
@@ -153,8 +140,8 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
                 <input className="ftm-finput" type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} />
               </div>
 
-              {/* Share-with picker — only shown for personal tasks */}
-              {isPersonal && shareableProfiles.length > 0 && (
+              {/* Share-with picker — shown for personal and restricted tasks */}
+              {needsSharePicker && shareableProfiles.length > 0 && (
                 <div className="ftm-ff full">
                   <label className="ftm-flbl">Share with (optional)</label>
                   <div className="ftm-share-picker">

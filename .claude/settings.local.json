@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"C:\\\\Users\\\\pietro.bologna\\\\Desktop\\\\mkdir fund-task-manager && cd fund-task-manager\" remote -v)",
+      "Bash(supabase --version)",
+      "Bash(npx supabase:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(find \"C:\\\\Users\\\\pietro.bologna\\\\Desktop\\\\mkdir fund-task-manager && cd fund-task-manager\\\\.claude\\\\worktrees\\\\funny-khorana\" -type f -name \"*.js\" -o -name \"*.jsx\" -o -name \"*.sql\")",
+      "Bash(ls -la \"/c/Users/pietro.bologna/Desktop/mkdir fund-task-manager && cd fund-task-manager/.claude/worktrees/funny-khorana/\")"
+    ]
+  }
+}

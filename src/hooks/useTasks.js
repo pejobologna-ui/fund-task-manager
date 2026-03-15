@@ -147,7 +147,7 @@ export function useThread(threadId) {
     const [{ data: th }, { data: st }] = await Promise.all([
       supabase
         .from('threads')
-        .select('id, name, category, description, visibility, created_at, company:companies(id, name, type)')
+        .select('id, name, category, description, visibility, created_by, created_at, company:companies(id, name, type)')
         .eq('id', threadId)
         .single(),
       supabase
@@ -189,7 +189,19 @@ export function useThread(threadId) {
     ))
   }, [])
 
-  return { thread, steps, loading, refetch: fetchThread, addStep, cycleStepStatus, reorderSteps }
+  const updateStep = useCallback(async (stepId, dbUpdates) => {
+    const { error } = await supabase.from('thread_steps').update(dbUpdates).eq('id', stepId)
+    if (!error) setSteps(prev => prev.map(s => s.id === stepId ? { ...s, ...dbUpdates } : s))
+    return error
+  }, [])
+
+  const deleteStep = useCallback(async (stepId) => {
+    const { error } = await supabase.from('thread_steps').delete().eq('id', stepId)
+    if (!error) setSteps(prev => prev.filter(s => s.id !== stepId))
+    return error
+  }, [])
+
+  return { thread, steps, loading, refetch: fetchThread, addStep, cycleStepStatus, reorderSteps, updateStep, deleteStep }
 }
 
 /**
@@ -224,11 +236,130 @@ export async function createTaskWithShares(fields, shareWithIds = []) {
 
   if (taskError) return { data: null, error: taskError }
 
-  if (shareWithIds.length > 0) {
+  // Insert task_shares for both 'personal' and 'restricted' visibility
+  if ((fields.visibility === 'personal' || fields.visibility === 'restricted') && shareWithIds.length > 0) {
     const rows = shareWithIds.map(uid => ({ task_id: task.id, shared_with: uid }))
     const { error: sharesError } = await supabase.from('task_shares').insert(rows)
     if (sharesError) return { data: task, error: sharesError }
   }
 
   return { data: task, error: null }
+}
+
+/**
+ * Manages the three shared reference tables: activity_categories, companies,
+ * and thread_templates. Provides optimistic CRUD for all three.
+ */
+export function useManage() {
+  const [categories, setCategories] = useState([])
+  const [companies,  setCompanies]  = useState([])
+  const [templates,  setTemplates]  = useState([])
+  const [loading, setLoading]       = useState(true)
+
+  const refetch = useCallback(async () => {
+    setLoading(true)
+    const [{ data: cats }, { data: cos }, { data: tpls }] = await Promise.all([
+      supabase.from('activity_categories').select('id, name, visibility, created_by').order('name'),
+      supabase.from('companies').select('id, name, type, fund').order('name'),
+      supabase.from('thread_templates').select('id, name, category, steps').order('name'),
+    ])
+    setCategories(cats ?? [])
+    setCompanies(cos   ?? [])
+    setTemplates(tpls  ?? [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { refetch() }, [refetch])
+
+  // ── Categories ──────────────────────────────────────────────────────────
+  const addCategory = useCallback(async (name) => {
+    const tmp = { id: `tmp-${Date.now()}`, name, visibility: 'team', created_by: null }
+    setCategories(prev => [...prev, tmp])
+    const { data, error } = await supabase
+      .from('activity_categories').insert({ name })
+      .select('id, name, visibility, created_by').single()
+    if (error) { setCategories(prev => prev.filter(c => c.id !== tmp.id)); return error }
+    setCategories(prev => prev.map(c => c.id === tmp.id ? data : c))
+    return null
+  }, [])
+
+  const renameCategory = useCallback(async (id, name) => {
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, name } : c))
+    const { error } = await supabase.from('activity_categories').update({ name }).eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  const updateCategoryVisibility = useCallback(async (id, visibility) => {
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, visibility } : c))
+    const { error } = await supabase.from('activity_categories').update({ visibility }).eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  const deleteCategory = useCallback(async (id) => {
+    setCategories(prev => prev.filter(c => c.id !== id))
+    const { error } = await supabase.from('activity_categories').delete().eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  // ── Companies ───────────────────────────────────────────────────────────
+  const addCompany = useCallback(async (fields) => {
+    const tmp = { id: `tmp-${Date.now()}`, ...fields }
+    setCompanies(prev => [...prev, tmp])
+    const { data, error } = await supabase
+      .from('companies').insert(fields)
+      .select('id, name, type, fund').single()
+    if (error) { setCompanies(prev => prev.filter(c => c.id !== tmp.id)); return error }
+    setCompanies(prev => prev.map(c => c.id === tmp.id ? data : c))
+    return null
+  }, [])
+
+  const updateCompany = useCallback(async (id, fields) => {
+    setCompanies(prev => prev.map(c => c.id === id ? { ...c, ...fields } : c))
+    const { error } = await supabase.from('companies').update(fields).eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  const deleteCompany = useCallback(async (id) => {
+    setCompanies(prev => prev.filter(c => c.id !== id))
+    const { error } = await supabase.from('companies').delete().eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  // ── Templates ───────────────────────────────────────────────────────────
+  const addTemplate = useCallback(async (fields) => {
+    const tmp = { id: `tmp-${Date.now()}`, ...fields }
+    setTemplates(prev => [...prev, tmp])
+    const { data, error } = await supabase
+      .from('thread_templates').insert(fields)
+      .select('id, name, category, steps').single()
+    if (error) { setTemplates(prev => prev.filter(t => t.id !== tmp.id)); return error }
+    setTemplates(prev => prev.map(t => t.id === tmp.id ? data : t))
+    return null
+  }, [])
+
+  const updateTemplate = useCallback(async (id, fields) => {
+    setTemplates(prev => prev.map(t => t.id === id ? { ...t, ...fields } : t))
+    const { error } = await supabase.from('thread_templates').update(fields).eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  const deleteTemplate = useCallback(async (id) => {
+    setTemplates(prev => prev.filter(t => t.id !== id))
+    const { error } = await supabase.from('thread_templates').delete().eq('id', id)
+    if (error) { refetch(); return error }
+    return null
+  }, [refetch])
+
+  return {
+    categories, companies, templates, loading, refetch,
+    addCategory, renameCategory, updateCategoryVisibility, deleteCategory,
+    addCompany, updateCompany, deleteCompany,
+    addTemplate, updateTemplate, deleteTemplate,
+  }
 }

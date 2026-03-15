@@ -314,3 +314,42 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 /* Add step button */
 .ftm-thread-step-add { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1.5px dashed var(--border2); border-radius: var(--radius); background: none; color: var(--muted); font-size: 11px; font-family: inherit; cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-top: 2px; }
 .ftm-thread-step-add:hover { border-color: var(--navy); color: var(--text); }
+
+/* ── Restricted visibility toggle button ─────────────────────────────────── */
+.ftm-vis-btn.restricted { /* base state same as other vis buttons */ }
+.ftm-vis-btn.restricted.active { background: #7c4f00; color: #fff; }
+
+/* ── ManageModal ─────────────────────────────────────────────────────────── */
+.ftm-manage-modal { max-width: 720px; }
+.ftm-mtabs { display: flex; border-bottom: 0.5px solid var(--border); padding: 0 20px; background: var(--surface2); }
+.ftm-mtab { padding: 10px 14px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; background: none; border-top: none; border-left: none; border-right: none; font-family: inherit; transition: color 0.12s, border-color 0.12s; }
+.ftm-mtab:hover { color: var(--text); }
+.ftm-mtab.active { color: var(--navy); border-bottom-color: var(--navy); }
+
+/* Manage list rows */
+.ftm-manage-list { display: flex; flex-direction: column; gap: 4px; padding: 12px 20px; }
+.ftm-manage-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--surface2); flex-wrap: wrap; }
+.ftm-manage-row:hover { background: #eceae4; border-color: var(--border2); }
+.ftm-manage-row input, .ftm-manage-row select { flex: 1; min-width: 80px; padding: 4px 7px; border: 0.5px solid transparent; border-radius: 5px; background: none; font-family: inherit; font-size: 12px; color: var(--text); outline: none; }
+.ftm-manage-row input:focus, .ftm-manage-row select:focus { border-color: var(--navy); background: var(--surface); }
+.ftm-manage-del { background: none; border: none; cursor: pointer; color: var(--light); font-size: 12px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; transition: color 0.1s, background 0.1s; white-space: nowrap; }
+.ftm-manage-del:hover { color: #a32d2d; background: rgba(163,45,45,0.08); }
+.ftm-manage-del.confirm { color: #a32d2d; background: rgba(163,45,45,0.08); font-size: 10px; padding: 3px 8px; }
+.ftm-manage-add { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1.5px dashed var(--border2); border-radius: var(--radius); background: none; color: var(--muted); font-size: 11px; font-family: inherit; cursor: pointer; margin: 0 20px 14px; transition: border-color 0.15s, color 0.15s; }
+.ftm-manage-add:hover { border-color: var(--navy); color: var(--text); }
+.ftm-manage-tpl-expand { padding: 14px 16px; border-top: 0.5px solid var(--border); background: var(--gold-bg); border-radius: 0 0 var(--radius) var(--radius); }
+
+/* ── Sidebar gear + thread-row edit button ───────────────────────────────── */
+.ftm-sgear-btn { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.3); font-size: 13px; padding: 2px 4px; border-radius: 4px; transition: color 0.12s; flex-shrink: 0; line-height: 1; }
+.ftm-sgear-btn:hover { color: rgba(255,255,255,0.7); }
+.ftm-sedit-btn { background: none; border: none; cursor: pointer; color: transparent; font-size: 10px; padding: 1px 3px; border-radius: 3px; transition: color 0.1s; flex-shrink: 0; line-height: 1; }
+.ftm-sitem:hover .ftm-sedit-btn { color: rgba(255,255,255,0.35); }
+.ftm-sedit-btn:hover { color: rgba(255,255,255,0.75) !important; background: rgba(255,255,255,0.08); }
+
+/* ── Step card edit button ───────────────────────────────────────────────── */
+.ftm-step-edit-btn { position: absolute; bottom: 7px; right: 26px; background: none; border: none; cursor: pointer; color: transparent; font-size: 10px; padding: 2px 3px; border-radius: 3px; transition: color 0.1s; line-height: 1; }
+.ftm-step-card:hover .ftm-step-edit-btn { color: var(--light); }
+.ftm-step-edit-btn:hover { color: var(--muted) !important; }
+
+/* ── Step edit inline panel ──────────────────────────────────────────────── */
+.ftm-step-edit-panel { padding: 10px 12px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--surface); display: flex; flex-direction: column; gap: 8px; margin-top: 6px; min-width: 148px; }

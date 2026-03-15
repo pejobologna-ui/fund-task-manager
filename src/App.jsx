@@ -7,6 +7,8 @@ import DetailPanel from './components/DetailPanel'
 import NewTaskModal from './components/NewTaskModal'
 import ThreadPage from './pages/ThreadPage'
 import NewThreadModal from './components/NewThreadModal'
+import ManageModal from './components/ManageModal'
+import ThreadEditModal from './components/ThreadEditModal'
 import LoginPage from './pages/LoginPage'
 import { useTasks } from './hooks/useTasks'
 import { useAuth } from './context/AuthContext'
@@ -26,6 +28,8 @@ export default function App() {
   const [modalOpen, setModal] = useState(false)
   const [modalPresetCat, setModalPresetCat] = useState(null)
   const [threadModalOpen, setThreadModal] = useState(false)
+  const [manageOpen, setManageOpen]       = useState(false)
+  const [editThreadId, setEditThreadId]   = useState(null)
 
   if (authLoading) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -128,6 +132,8 @@ export default function App() {
         onNavFilter={handleNavFilter}
         onOpenThread={handleOpenThread}
         onNewThread={() => setThreadModal(true)}
+        onEditThread={id => setEditThreadId(id)}
+        onManage={() => setManageOpen(true)}
         counts={counts}
         tasks={tasks}
         profile={profile}
@@ -145,6 +151,8 @@ export default function App() {
             onUpdate={updateField}
             onBack={() => setThreadPage(null)}
             onOpenThread={handleOpenThread}
+            onEditThread={id => setEditThreadId(id)}
+            myUserId={myUserId}
           />
         </div>
       ) : (
@@ -201,6 +209,21 @@ export default function App() {
             handleOpenThread(thread.id)
             refetch()
           }}
+        />
+      )}
+
+      {manageOpen && (
+        <ManageModal
+          onClose={() => setManageOpen(false)}
+          onSaved={refetch}
+        />
+      )}
+
+      {editThreadId && (
+        <ThreadEditModal
+          threadId={editThreadId}
+          onClose={() => setEditThreadId(null)}
+          onSaved={() => { setEditThreadId(null); refetch() }}
         />
       )}
     </div>

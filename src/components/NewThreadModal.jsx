@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { useLookups } from '../hooks/useTasks'
 import { useAuth } from '../context/AuthContext'
+import VisibilityToggle from './VisibilityToggle'
+import StepEditorRows from './StepEditorRows'
 
 export default function NewThreadModal({ onClose, onCreated }) {
   const { session } = useAuth()
@@ -240,18 +242,7 @@ export default function NewThreadModal({ onClose, onCreated }) {
                 </div>
                 <div className="ftm-ff full">
                   <label className="ftm-flbl">Visibility</label>
-                  <div className="ftm-vis-toggle">
-                    <button
-                      type="button"
-                      className={`ftm-vis-btn${visibility === 'team' ? ' active' : ''}`}
-                      onClick={() => setVisibility('team')}
-                    >🏢 Team</button>
-                    <button
-                      type="button"
-                      className={`ftm-vis-btn${visibility === 'personal' ? ' active personal' : ''}`}
-                      onClick={() => setVisibility('personal')}
-                    >🔒 Personal</button>
-                  </div>
+                  <VisibilityToggle value={visibility} onChange={setVisibility} />
                 </div>
               </div>
 
@@ -261,54 +252,16 @@ export default function NewThreadModal({ onClose, onCreated }) {
                 <span className="ftm-thread-steps-cnt">{steps.length}</span>
               </div>
 
-              <div className="ftm-thread-steps-list">
-                {steps.map((step, idx) => (
-                  <div
-                    key={step.tempId}
-                    className="ftm-thread-step-row"
-                    draggable
-                    onDragStart={e => onDragStart(e, idx)}
-                    onDragOver={e => onDragOver(e, idx)}
-                    onDragEnd={onDragEnd}
-                  >
-                    <div className="ftm-thread-step-drag" title="Drag to reorder">⠿</div>
-                    <div className="ftm-thread-step-num">{idx + 1}</div>
-                    <div className="ftm-thread-step-fields">
-                      <input
-                        className="ftm-finput ftm-thread-step-title"
-                        placeholder={`Step ${idx + 1} name…`}
-                        value={step.title}
-                        onChange={e => updateStep(step.tempId, 'title', e.target.value)}
-                      />
-                      <div className="ftm-thread-step-row2">
-                        <select
-                          className="ftm-fsel ftm-thread-step-sel"
-                          value={step.assigneeId}
-                          onChange={e => updateStep(step.tempId, 'assigneeId', e.target.value)}
-                        >
-                          <option value="">Unassigned</option>
-                          {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                        </select>
-                        <input
-                          type="date"
-                          className="ftm-finput ftm-thread-step-date"
-                          value={step.dueDate}
-                          onChange={e => updateStep(step.tempId, 'dueDate', e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      className="ftm-thread-step-del"
-                      onClick={() => removeStep(step.tempId)}
-                      title="Remove step"
-                    >×</button>
-                  </div>
-                ))}
-
-                <button className="ftm-thread-step-add" onClick={addStep}>
-                  + Add step
-                </button>
-              </div>
+              <StepEditorRows
+                steps={steps}
+                users={users}
+                onUpdate={updateStep}
+                onRemove={removeStep}
+                onDragStart={onDragStart}
+                onDragOver={onDragOver}
+                onDragEnd={onDragEnd}
+                onAdd={addStep}
+              />
 
               {err && (
                 <div style={{ color: '#a32d2d', fontSize: 11, marginTop: 10 }}>{err}</div>
