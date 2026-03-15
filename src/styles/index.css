@@ -35,6 +35,19 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-sdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .ftm-scnt { margin-left: auto; font-size: 10px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.35); padding: 0 5px; border-radius: 20px; }
 .ftm-sitem.active .ftm-scnt { background: rgba(184,147,62,0.2); color: #d4a853; }
+/* Sidebar collapsible section headers */
+.ftm-sheading { display: flex; align-items: center; padding: 4px 6px 2px; cursor: pointer; user-select: none; border-radius: 4px; }
+.ftm-sheading:hover .ftm-slabel { color: rgba(255,255,255,0.5); }
+.ftm-schevron { font-size: 9px; color: rgba(255,255,255,0.22); margin-left: auto; display: inline-block; transition: transform 0.15s; line-height: 1; }
+.ftm-schevron.closed { transform: rotate(-90deg); }
+.ftm-ssub-label { font-size: 9px; color: rgba(255,255,255,0.2); letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 12px 2px; }
+.ftm-sitem-sub { padding-left: 14px !important; }
+.ftm-sitem-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: 11px; }
+/* Thread progress indicator */
+.ftm-sprog { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; }
+.ftm-sprog-track { width: 26px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.ftm-sprog-fill { height: 100%; background: rgba(255,255,255,0.38); border-radius: 2px; transition: width 0.2s; }
+.ftm-sprog-txt { font-size: 9px; color: rgba(255,255,255,0.25); font-family: monospace; white-space: nowrap; }
 .ftm-sbottom { margin-top: auto; padding: 10px 8px; border-top: 1px solid rgba(255,255,255,0.06); }
 .ftm-user { display: flex; align-items: center; gap: 8px; padding: 4px 6px; }
 .ftm-avatar { width: 26px; height: 26px; border-radius: 50%; background: #b8933e; color: var(--navy); font-size: 9px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }

@@ -15,6 +15,7 @@ export default function App() {
   const { tasks, loading, error, refetch, toggleDone, updateNotes, updateField } = useTasks()
 
   const [view, setView]       = useState('all')
+  const [navFilter, setNavFilter] = useState(null)  // { type: 'category'|'company'|'thread', id, name }
   const [filterStatus, setFS] = useState('all')
   const [filterPrio, setFP]   = useState('all')
   const [query, setQuery]     = useState('')
@@ -29,14 +30,24 @@ export default function App() {
   )
   if (!session) return <LoginPage />
 
-  // Match "my tasks" by initials since tasks.assignee_id references the users table (short IDs)
   const myInitials = profile?.initials ?? ''
   const myUserId   = session.user.id
 
-  // Personal view helpers — RLS guarantees: if a personal task is visible and not created by me,
-  // it must have been shared with me via task_shares.
-  const isMyPersonal     = t => t.visibility === 'personal' && t.created_by === myUserId
-  const isSharedWithMe   = t => t.visibility === 'personal' && t.created_by !== myUserId
+  const isMyPersonal   = t => t.visibility === 'personal' && t.created_by === myUserId
+  const isSharedWithMe = t => t.visibility === 'personal' && t.created_by !== myUserId
+
+  // Switching a team/personal view always clears the nav filter
+  function handleSetView(v) {
+    setView(v)
+    setNavFilter(null)
+  }
+
+  // Clicking the already-active filter toggles it off
+  function handleNavFilter(f) {
+    setNavFilter(prev =>
+      prev?.type === f.type && prev?.id === f.id ? null : f
+    )
+  }
 
   const counts = useMemo(() => ({
     all:      tasks.filter(t => t.visibility !== 'personal' && t.status !== 'Done').length,
@@ -50,17 +61,22 @@ export default function App() {
   const filtered = useMemo(() => {
     const q = query.toLowerCase()
     return tasks.filter(t => {
-      // Personal views: strict isolation — never mix with team tasks
-      if (view === 'personal') { if (!isMyPersonal(t))   return false }
-      else if (view === 'shared') { if (!isSharedWithMe(t)) return false }
-      else {
-        // All team views: exclude personal tasks entirely
-        if (t.visibility === 'personal') return false
-        if (view === 'mine'    && t.assignee?.initials !== myInitials) return false
-        if (view === 'overdue' && (dateDiff(t.due_date) >= 0 || t.status === 'Done')) return false
-        if (view === 'week') {
-          const d = dateDiff(t.due_date)
-          if (d < 0 || d > 7 || t.status === 'Done') return false
+      if (navFilter) {
+        // Nav filter overrides the view — show all matching tasks regardless of visibility
+        if (navFilter.type === 'category' && t.category?.id !== navFilter.id) return false
+        if (navFilter.type === 'company'  && t.company?.id  !== navFilter.id) return false
+        if (navFilter.type === 'thread'   && t.thread?.id   !== navFilter.id) return false
+      } else {
+        if (view === 'personal') { if (!isMyPersonal(t))   return false }
+        else if (view === 'shared') { if (!isSharedWithMe(t)) return false }
+        else {
+          if (t.visibility === 'personal') return false
+          if (view === 'mine'    && t.assignee?.initials !== myInitials) return false
+          if (view === 'overdue' && (dateDiff(t.due_date) >= 0 || t.status === 'Done')) return false
+          if (view === 'week') {
+            const d = dateDiff(t.due_date)
+            if (d < 0 || d > 7 || t.status === 'Done') return false
+          }
         }
       }
       if (filterStatus !== 'all' && t.status !== filterStatus) return false
@@ -71,7 +87,7 @@ export default function App() {
       }
       return true
     })
-  }, [tasks, view, filterStatus, filterPrio, query, myInitials, myUserId])
+  }, [tasks, view, navFilter, filterStatus, filterPrio, query, myInitials, myUserId])
 
   const selectedTask = tasks.find(t => t.id === selectedId) ?? null
 
@@ -89,11 +105,15 @@ export default function App() {
     shared:   'Shared with me',
   }
 
+  const pageTitle = navFilter ? navFilter.name : (VIEW_TITLES[view] ?? view)
+
   return (
     <div className="ftm">
       <Sidebar
         view={view}
-        onSetView={setView}
+        onSetView={handleSetView}
+        navFilter={navFilter}
+        onNavFilter={handleNavFilter}
         counts={counts}
         tasks={tasks}
         profile={profile}
@@ -101,7 +121,7 @@ export default function App() {
 
       <div className="ftm-main">
         <Header
-          title={VIEW_TITLES[view]}
+          title={pageTitle}
           query={query}
           onQuery={setQuery}
           onNewTask={() => openNewTask()}
