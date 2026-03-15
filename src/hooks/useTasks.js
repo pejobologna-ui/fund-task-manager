@@ -18,9 +18,9 @@ export function useTasks() {
       .select(`
         id, title, description, status, priority, due_date, notes, created_at,
         visibility, created_by,
-        category:categories(id, name),
+        category:activity_categories(id, name),
         thread:threads(id, name),
-        company:companies(id, name, type),
+        company:companies(id, name, type, fund),
         assignee:users(id, name, initials, role)
       `)
       .order('created_at', { ascending: false })
@@ -96,9 +96,9 @@ export function useLookups() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('categories').select('id, name').order('name'),
+      supabase.from('activity_categories').select('id, name').order('name'),
       supabase.from('threads').select('id, name').order('name'),
-      supabase.from('companies').select('id, name, type').order('name'),
+      supabase.from('companies').select('id, name, type, fund').order('name'),
       supabase.from('users').select('id, name, initials, role').order('name'),
     ]).then(([cats, threads, cos, users]) => {
       setLookups({
@@ -155,9 +155,9 @@ export async function createTaskWithShares(fields, shareWithIds = []) {
     .select(`
       id, title, description, status, priority, due_date, notes, created_at,
       visibility, created_by,
-      category:categories(id, name),
+      category:activity_categories(id, name),
       thread:threads(id, name),
-      company:companies(id, name, type),
+      company:companies(id, name, type, fund),
       assignee:users(id, name, initials, role)
     `)
     .single()
