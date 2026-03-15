@@ -263,3 +263,54 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 20px; }
+
+/* ── New thread modal ─────────────────────────────────────── */
+.ftm-thread-modal { max-width: 680px; }
+
+/* Sidebar "+" new thread button */
+.ftm-snew-btn { background: none; border: none; cursor: pointer; color: rgba(255,255,255,0.25); font-size: 14px; line-height: 1; padding: 0 4px; border-radius: 4px; margin-left: auto; margin-right: 2px; transition: color 0.12s, background 0.12s; flex-shrink: 0; }
+.ftm-snew-btn:hover { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+
+/* Back button inline in modal header */
+.ftm-back-inline { font-size: 11px; padding: 3px 8px; margin-right: 4px; }
+
+/* Phase: choose — two big cards */
+.ftm-thread-choose-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.ftm-thread-choose-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 20px 18px; border: 1.5px solid var(--border2); border-radius: var(--radius-lg); background: var(--surface2); cursor: pointer; text-align: left; transition: border-color 0.15s, box-shadow 0.15s; font-family: inherit; }
+.ftm-thread-choose-card:hover { border-color: var(--gold); box-shadow: 0 2px 12px rgba(184,147,62,0.15); }
+.ftm-thread-choose-icon { font-size: 22px; margin-bottom: 2px; }
+.ftm-thread-choose-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.ftm-thread-choose-sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* Phase: templates — scrollable list of template cards */
+.ftm-thread-tpl-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+.ftm-thread-tpl-card { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1.5px solid var(--border2); border-radius: var(--radius); background: var(--surface2); cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s; font-family: inherit; }
+.ftm-thread-tpl-card:hover { border-color: var(--gold); background: var(--gold-bg); }
+.ftm-thread-tpl-top { display: flex; align-items: center; gap: 8px; }
+.ftm-thread-tpl-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.ftm-thread-tpl-steps { display: flex; flex-wrap: wrap; gap: 4px; }
+.ftm-thread-tpl-step { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); background: rgba(0,0,0,0.05); border-radius: 4px; padding: 2px 7px; }
+.ftm-thread-tpl-step-n { font-weight: 700; color: var(--light); font-size: 9px; }
+
+/* Phase: edit — steps section */
+.ftm-thread-steps-hdr { display: flex; align-items: center; gap: 7px; margin-top: 20px; margin-bottom: 8px; }
+.ftm-thread-steps-cnt { font-size: 10px; background: var(--surface2); color: var(--muted); padding: 1px 6px; border-radius: 20px; border: 0.5px solid var(--border2); }
+.ftm-thread-steps-list { display: flex; flex-direction: column; gap: 6px; }
+
+/* Individual step editor row */
+.ftm-thread-step-row { display: flex; align-items: flex-start; gap: 7px; padding: 8px 10px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--surface2); cursor: grab; user-select: none; }
+.ftm-thread-step-row:hover { border-color: var(--border2); background: #eceae4; }
+.ftm-thread-step-drag { color: var(--border2); font-size: 14px; cursor: grab; flex-shrink: 0; padding-top: 6px; line-height: 1; }
+.ftm-thread-step-row:hover .ftm-thread-step-drag { color: var(--light); }
+.ftm-thread-step-num { width: 18px; height: 18px; border-radius: 50%; background: rgba(0,0,0,0.07); color: var(--muted); font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 6px; }
+.ftm-thread-step-fields { flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.ftm-thread-step-title { height: 30px; padding: 4px 8px !important; font-size: 12px !important; }
+.ftm-thread-step-row2 { display: flex; gap: 6px; }
+.ftm-thread-step-sel { flex: 1; height: 28px; padding: 3px 6px !important; font-size: 11px !important; }
+.ftm-thread-step-date { width: 130px; height: 28px; padding: 3px 6px !important; font-size: 11px !important; flex-shrink: 0; }
+.ftm-thread-step-del { background: none; border: none; cursor: pointer; color: var(--light); font-size: 16px; padding: 2px 4px; border-radius: 4px; flex-shrink: 0; margin-top: 3px; line-height: 1; transition: color 0.1s, background 0.1s; }
+.ftm-thread-step-del:hover { color: #a32d2d; background: rgba(163,45,45,0.08); }
+
+/* Add step button */
+.ftm-thread-step-add { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1.5px dashed var(--border2); border-radius: var(--radius); background: none; color: var(--muted); font-size: 11px; font-family: inherit; cursor: pointer; transition: border-color 0.15s, color 0.15s; margin-top: 2px; }
+.ftm-thread-step-add:hover { border-color: var(--navy); color: var(--text); }

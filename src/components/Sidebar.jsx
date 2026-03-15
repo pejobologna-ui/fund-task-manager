@@ -20,7 +20,7 @@ const ROLE_LABELS = {
   viewer:    'Viewer',
 }
 
-export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpenThread, counts, tasks, profile }) {
+export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpenThread, onNewThread, counts, tasks, profile }) {
   const { signOut } = useAuth()
   const [collapsed, setCollapsed] = useState({ categories: false, companies: false, threads: false })
 
@@ -184,6 +184,11 @@ export default function Sidebar({ view, onSetView, navFilter, onNavFilter, onOpe
       <div className="ftm-snav">
         <div className="ftm-sheading" onClick={() => toggle('threads')}>
           <span className="ftm-slabel" style={{ margin: 0 }}>Threads</span>
+          <button
+            className="ftm-snew-btn"
+            title="New thread"
+            onClick={e => { e.stopPropagation(); onNewThread() }}
+          >+</button>
           <span className={`ftm-schevron${collapsed.threads ? ' closed' : ''}`}>▾</span>
         </div>
         {!collapsed.threads && threads.map(th => (

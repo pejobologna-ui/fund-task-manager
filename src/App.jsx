@@ -6,6 +6,7 @@ import TaskList from './components/TaskList'
 import DetailPanel from './components/DetailPanel'
 import NewTaskModal from './components/NewTaskModal'
 import ThreadPage from './pages/ThreadPage'
+import NewThreadModal from './components/NewThreadModal'
 import LoginPage from './pages/LoginPage'
 import { useTasks } from './hooks/useTasks'
 import { useAuth } from './context/AuthContext'
@@ -24,6 +25,7 @@ export default function App() {
   const [selectedId, select]  = useState(null)
   const [modalOpen, setModal] = useState(false)
   const [modalPresetCat, setModalPresetCat] = useState(null)
+  const [threadModalOpen, setThreadModal] = useState(false)
 
   if (authLoading) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -125,6 +127,7 @@ export default function App() {
         navFilter={navFilter}
         onNavFilter={handleNavFilter}
         onOpenThread={handleOpenThread}
+        onNewThread={() => setThreadModal(true)}
         counts={counts}
         tasks={tasks}
         profile={profile}
@@ -187,6 +190,17 @@ export default function App() {
           presetCategory={modalPresetCat}
           onClose={() => setModal(false)}
           onCreated={() => { refetch(); setModal(false) }}
+        />
+      )}
+
+      {threadModalOpen && (
+        <NewThreadModal
+          onClose={() => setThreadModal(false)}
+          onCreated={thread => {
+            setThreadModal(false)
+            handleOpenThread(thread.id)
+            refetch()
+          }}
         />
       )}
     </div>
