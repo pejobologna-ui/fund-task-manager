@@ -54,6 +54,7 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
     if (form.visibility === 'team' && !form.assignee_id) {
       setErr('Assignee is required for team tasks.'); return
     }
+    // thread_id and company_id are optional — empty string = null (No thread / No company)
     setSaving(true)
     setErr(null)
     const { data, error } = await createTaskWithShares(form, shareWith)
@@ -120,14 +121,14 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
               <div className="ftm-ff">
                 <label className="ftm-flbl">Thread</label>
                 <select className="ftm-fsel" value={form.thread_id} onChange={e => set('thread_id', e.target.value)}>
-                  <option value="">Select…</option>
+                  <option value="">— No thread —</option>
                   {threads.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
               <div className="ftm-ff">
                 <label className="ftm-flbl">Company</label>
                 <select className="ftm-fsel" value={form.company_id} onChange={e => set('company_id', e.target.value)}>
-                  <option value="">None</option>
+                  <option value="">— General / No company —</option>
                   {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>

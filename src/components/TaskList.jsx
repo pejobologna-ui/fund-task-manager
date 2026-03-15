@@ -85,7 +85,7 @@ function StatsBar({ tasks }) {
   )
 }
 
-function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users }) {
+function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users, categories, companies, threads }) {
   const [openCell, setOpenCell] = useState(null)
   const isDone = task.status === 'Done'
   const dc = dueCls(task.due_date, task.status)
@@ -105,18 +105,93 @@ function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users }) {
         {isDone ? '✓' : ''}
       </div>
 
+      {/* Title only — context lives in the labels column */}
       <div style={{ minWidth: 0 }}>
         <div className={`ftm-ttitle${isDone ? ' done' : ''}`}>{task.title}</div>
-        <div className="ftm-tsub">
-          {task.company?.name && task.company.name !== 'General (Fund)' ? `${task.company.name} · ` : ''}
-          {task.thread?.name ?? '—'}
-        </div>
       </div>
 
-      <div style={{ overflow: 'hidden' }}>
-        <span className="ftm-badge b-cat" style={{ maxWidth: 90, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-flex' }}>
-          {(task.thread?.name ?? '').split('—')[0].trim()}
-        </span>
+      {/* Labels column: category · company · thread — all editable */}
+      <div className="ftm-labels">
+        {/* Category */}
+        <CellPopover
+          open={openCell === 'category'}
+          onOpen={() => setOpenCell('category')}
+          onClose={close}
+          trigger={<span className="ftm-badge b-cat ftm-label-badge">{task.category?.name ?? '—'}</span>}
+        >
+          <div className="ftm-pop-list">
+            {categories.map(cat => (
+              <div
+                key={cat.id}
+                className={`ftm-pop-item${task.category?.id === cat.id ? ' active' : ''}`}
+                onClick={e => {
+                  e.stopPropagation(); close()
+                  onUpdate(task.id, { category_id: cat.id }, { category: { id: cat.id, name: cat.name } })
+                }}
+              >
+                <span className="ftm-badge b-cat">{cat.name}</span>
+              </div>
+            ))}
+          </div>
+        </CellPopover>
+
+        {/* Company */}
+        <CellPopover
+          open={openCell === 'company'}
+          onOpen={() => setOpenCell('company')}
+          onClose={close}
+          trigger={<span className="ftm-badge b-co ftm-label-badge">{task.company?.name ?? 'No company'}</span>}
+        >
+          <div className="ftm-pop-list">
+            <div
+              className={`ftm-pop-item${!task.company ? ' active' : ''}`}
+              onClick={e => { e.stopPropagation(); close(); onUpdate(task.id, { company_id: null }, { company: null }) }}
+            >
+              <span className="ftm-pop-null">General / No company</span>
+            </div>
+            {companies.map(co => (
+              <div
+                key={co.id}
+                className={`ftm-pop-item${task.company?.id === co.id ? ' active' : ''}`}
+                onClick={e => {
+                  e.stopPropagation(); close()
+                  onUpdate(task.id, { company_id: co.id }, { company: co })
+                }}
+              >
+                {co.name}
+              </div>
+            ))}
+          </div>
+        </CellPopover>
+
+        {/* Thread */}
+        <CellPopover
+          open={openCell === 'thread'}
+          onOpen={() => setOpenCell('thread')}
+          onClose={close}
+          trigger={<span className="ftm-badge b-thread ftm-label-badge">{task.thread?.name ?? 'No thread'}</span>}
+        >
+          <div className="ftm-pop-list">
+            <div
+              className={`ftm-pop-item${!task.thread ? ' active' : ''}`}
+              onClick={e => { e.stopPropagation(); close(); onUpdate(task.id, { thread_id: null }, { thread: null }) }}
+            >
+              <span className="ftm-pop-null">No thread</span>
+            </div>
+            {threads.map(th => (
+              <div
+                key={th.id}
+                className={`ftm-pop-item${task.thread?.id === th.id ? ' active' : ''}`}
+                onClick={e => {
+                  e.stopPropagation(); close()
+                  onUpdate(task.id, { thread_id: th.id }, { thread: { id: th.id, name: th.name } })
+                }}
+              >
+                {th.name}
+              </div>
+            ))}
+          </div>
+        </CellPopover>
       </div>
 
       {/* Status */}
@@ -215,12 +290,12 @@ function TaskRow({ task, selected, onSelect, onToggle, onUpdate, users }) {
 }
 
 export default function TaskList({ tasks, allTasks, loading, error, selectedId, onSelect, onToggle, onUpdate, onAddInCategory }) {
-  const { users } = useLookups()
+  const { users, categories, companies, threads } = useLookups()
 
   const groups = useMemo(() => {
     const map = {}
     tasks.forEach(t => {
-      const cat = t.category?.name ?? 'Other'
+      const cat = t.category?.name ?? 'Uncategorized'
       if (!map[cat]) map[cat] = []
       map[cat].push(t)
     })
@@ -248,7 +323,7 @@ export default function TaskList({ tasks, allTasks, loading, error, selectedId, 
               <div className="ftm-row hdr">
                 <div />
                 <div className="ftm-ch">Task</div>
-                <div className="ftm-ch">Thread</div>
+                <div className="ftm-ch">Labels</div>
                 <div className="ftm-ch">Status</div>
                 <div className="ftm-ch">Priority</div>
                 <div className="ftm-ch">Assignee</div>
@@ -264,6 +339,9 @@ export default function TaskList({ tasks, allTasks, loading, error, selectedId, 
                   onToggle={onToggle}
                   onUpdate={onUpdate}
                   users={users}
+                  categories={categories}
+                  companies={companies}
+                  threads={threads}
                 />
               ))}
               <div className="ftm-addrow" onClick={() => onAddInCategory(cat)}>

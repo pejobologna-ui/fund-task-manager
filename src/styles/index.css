@@ -91,7 +91,7 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 
 /* Task table */
 .ftm-table { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; }
-.ftm-row { display: grid; grid-template-columns: 24px 1fr 100px 88px 76px 80px 72px 28px; align-items: center; padding: 0 10px; border-bottom: 0.5px solid var(--border); min-height: 38px; gap: 6px; cursor: pointer; transition: background 0.1s; }
+.ftm-row { display: grid; grid-template-columns: 24px 1fr 116px 88px 76px 80px 72px 28px; align-items: center; padding: 0 10px; border-bottom: 0.5px solid var(--border); min-height: 54px; gap: 6px; cursor: pointer; transition: background 0.1s; }
 .ftm-row:last-child { border-bottom: none; }
 .ftm-row:hover { background: var(--surface2); }
 .ftm-row.hdr { background: var(--surface2); cursor: default; min-height: 30px; }
@@ -111,7 +111,14 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .p-hi   { background: #fcebeb; color: #a32d2d; }
 .p-md   { background: #faeeda; color: #854f0b; }
 .p-lo   { background: #f1efe8; color: #5f5e5a; }
-.b-cat  { background: var(--gold-bg); color: #7a5c1e; font-size: 10px; }
+.b-cat    { background: var(--gold-bg); color: #7a5c1e; }
+.b-co     { background: rgba(55,138,221,0.10); color: #1e5282; }
+.b-thread { background: rgba(93,202,165,0.13); color: #166147; }
+/* Labels column — three stacked editable badge-popovers */
+.ftm-labels { display: flex; flex-direction: column; gap: 3px; overflow: hidden; padding: 4px 0; }
+.ftm-labels .ftm-cell-trigger { margin: 0; width: 100%; display: flex; }
+.ftm-label-badge { font-size: 9px !important; padding: 1px 6px !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: block !important; cursor: pointer; }
+.ftm-pop-null { font-style: italic; color: var(--light); font-size: 11px; }
 .ftm-asgn { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .ftm-aavatar { width: 20px; height: 20px; border-radius: 50%; background: var(--navy2); color: #fff; font-size: 8px; font-weight: 500; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ftm-aname { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
