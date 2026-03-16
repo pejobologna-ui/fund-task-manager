@@ -94,24 +94,26 @@ export function useLookups() {
   const [lookups, setLookups] = useState({ categories: [], threads: [], companies: [], users: [] })
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    Promise.all([
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    const [cats, threads, cos, users] = await Promise.all([
       supabase.from('activity_categories').select('id, name').order('name'),
       supabase.from('threads').select('id, name').order('name'),
       supabase.from('companies').select('id, name, type, fund').order('name'),
       supabase.from('users').select('id, name, initials, role').order('name'),
-    ]).then(([cats, threads, cos, users]) => {
-      setLookups({
-        categories: cats.data ?? [],
-        threads:    threads.data ?? [],
-        companies:  cos.data ?? [],
-        users:      users.data ?? [],
-      })
-      setLoading(false)
+    ])
+    setLookups({
+      categories: cats.data ?? [],
+      threads:    threads.data ?? [],
+      companies:  cos.data ?? [],
+      users:      users.data ?? [],
     })
+    setLoading(false)
   }, [])
 
-  return { ...lookups, loading }
+  useEffect(() => { fetchAll() }, [fetchAll])
+
+  return { ...lookups, loading, refetch: fetchAll }
 }
 
 /**

@@ -22,6 +22,26 @@ const ROLE_LABELS = {
   viewer:    'Viewer',
 }
 
+// ─── Rename Input ─────────────────────────────────────────────────────────────
+// Must live at module level — defining components inside other components causes
+// React to unmount/remount on every parent re-render, breaking focus & Enter key.
+function RenameInput({ inputRef, value, onChange, onCommit, onCancel }) {
+  return (
+    <input
+      ref={inputRef}
+      className="ftm-sinline-input"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      onClick={e => e.stopPropagation()}
+      onKeyDown={e => {
+        if (e.key === 'Enter')  { e.preventDefault(); onCommit() }
+        if (e.key === 'Escape') onCancel()
+      }}
+      onBlur={onCommit}
+    />
+  )
+}
+
 // ─── Context Menu ────────────────────────────────────────────────────────────
 function ContextMenu({ x, y, items, onClose }) {
   const ref = useRef(null)
@@ -262,22 +282,15 @@ export default function Sidebar({
     ]
   }
 
-  // ── Inline rename input (reusable) ─────────────────────────────────────────
-  function RenameInput({ prefix, id }) {
-    return (
-      <input
-        ref={renameInputRef}
-        className="ftm-sinline-input"
-        value={renameVal}
-        onChange={e => setRenameVal(e.target.value)}
-        onClick={e => e.stopPropagation()}
-        onKeyDown={e => {
-          if (e.key === 'Enter')  commitRename(prefix, id)
-          if (e.key === 'Escape') { setRenamingId(null); setRenameVal('') }
-        }}
-        onBlur={() => commitRename(prefix, id)}
-      />
-    )
+  // Helper to build props for the module-level RenameInput
+  function renameProps(prefix, id) {
+    return {
+      inputRef: renameInputRef,
+      value:    renameVal,
+      onChange: setRenameVal,
+      onCommit: () => commitRename(prefix, id),
+      onCancel: () => { setRenamingId(null); setRenameVal('') },
+    }
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -355,7 +368,7 @@ export default function Sidebar({
               >
                 <div className="ftm-sdot" style={{ background: '#b8933e55', border: '1px solid #b8933e' }} />
                 {renamingId === `cat-${cat.id}`
-                  ? <RenameInput prefix="cat" id={cat.id} />
+                  ? <RenameInput {...renameProps('cat', cat.id)} />
                   : <span className="ftm-sitem-label">{cat.name}</span>
                 }
                 <span className="ftm-scnt">{cat.count || ''}</span>
@@ -410,7 +423,7 @@ export default function Sidebar({
               >
                 <div className="ftm-sdot" style={{ background: '#9b71d455', border: '1px solid #9b71d4' }} />
                 {renamingId === `co-${co.id}`
-                  ? <RenameInput prefix="co" id={co.id} />
+                  ? <RenameInput {...renameProps('co', co.id)} />
                   : <span className="ftm-sitem-label">{co.name}</span>
                 }
                 <span className="ftm-scnt">{co.count || ''}</span>
@@ -443,20 +456,8 @@ export default function Sidebar({
                   ])}
                 >
                   {renamingId === `fund-${fund.id}`
-                    ? (
-                      <input
-                        ref={renameInputRef}
-                        className="ftm-sinline-input"
-                        value={renameVal}
-                        onChange={e => setRenameVal(e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter')  commitRename('fund', fund.id)
-                          if (e.key === 'Escape') { setRenamingId(null); setRenameVal('') }
-                        }}
-                        onBlur={() => commitRename('fund', fund.id)}
-                      />
-                    ) : (
+                    ? <RenameInput {...renameProps('fund', fund.id)} />
+                    : (
                       <span className="ftm-ssub-label" style={{ margin: 0 }}>{fund.name}</span>
                     )
                   }
@@ -479,7 +480,7 @@ export default function Sidebar({
                       >
                         <div className="ftm-sdot" style={{ background: '#378add55', border: '1px solid #378add' }} />
                         {renamingId === `co-${co.id}`
-                          ? <RenameInput prefix="co" id={co.id} />
+                          ? <RenameInput {...renameProps('co', co.id)} />
                           : <span className="ftm-sitem-label">{co.name}</span>
                         }
                         <span className="ftm-scnt">{co.count || ''}</span>
@@ -533,7 +534,7 @@ export default function Sidebar({
                   >
                     <div className="ftm-sdot" style={{ background: '#aaa5', border: '1px solid #aaa' }} />
                     {renamingId === `co-${co.id}`
-                      ? <RenameInput prefix="co" id={co.id} />
+                      ? <RenameInput {...renameProps('co', co.id)} />
                       : <span className="ftm-sitem-label">{co.name}</span>
                     }
                     <span className="ftm-scnt">{co.count || ''}</span>

@@ -10,13 +10,18 @@ import NewThreadModal from './components/NewThreadModal'
 import ManageModal from './components/ManageModal'
 import ThreadEditModal from './components/ThreadEditModal'
 import LoginPage from './pages/LoginPage'
-import { useTasks } from './hooks/useTasks'
+import { useTasks, useLookups, useProfiles } from './hooks/useTasks'
 import { useAuth } from './context/AuthContext'
 import { dateDiff } from './utils'
 
 export default function App() {
   const { session, profile, loading: authLoading } = useAuth()
   const { tasks, loading, error, refetch, toggleDone, updateNotes, updateField } = useTasks()
+  const { categories, threads, companies, users, loading: lookupsLoading, refetch: refetchLookups } = useLookups()
+  const { profiles } = useProfiles()
+
+  // Single function that refreshes both task list and all dropdown lookups
+  function refetchAll() { refetch(); refetchLookups() }
 
   const [view, setView]         = useState('all')
   const [navFilter, setNavFilter] = useState(null)   // { type: 'category'|'company'|'thread', id, name }
@@ -134,7 +139,7 @@ export default function App() {
         onNewThread={() => setThreadModal(true)}
         onEditThread={id => setEditThreadId(id)}
         onManage={() => setManageOpen(true)}
-        onDataChanged={refetch}
+        onDataChanged={refetchAll}
         counts={counts}
         tasks={tasks}
         profile={profile}
@@ -198,18 +203,27 @@ export default function App() {
         <NewTaskModal
           presetCategory={modalPresetCat}
           navFilter={navFilter}
+          categories={categories}
+          threads={threads}
+          companies={companies}
+          users={users}
+          profiles={profiles}
+          lookupsLoading={lookupsLoading}
           onClose={() => setModal(false)}
-          onCreated={() => { refetch(); setModal(false) }}
+          onCreated={() => { refetchAll(); setModal(false) }}
         />
       )}
 
       {threadModalOpen && (
         <NewThreadModal
+          companies={companies}
+          users={users}
+          profiles={profiles}
           onClose={() => setThreadModal(false)}
           onCreated={thread => {
             setThreadModal(false)
             handleOpenThread(thread.id)
-            refetch()
+            refetchAll()
           }}
         />
       )}

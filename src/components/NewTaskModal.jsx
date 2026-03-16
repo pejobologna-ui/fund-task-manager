@@ -1,15 +1,17 @@
 import { useState } from 'react'
-import { useLookups, useProfiles, createTaskWithShares } from '../hooks/useTasks'
+import { createTaskWithShares } from '../hooks/useTasks'
 import { useAuth } from '../context/AuthContext'
 import { PRIORITIES } from '../constants'
 import SharePicker, { EVERYONE } from './SharePicker'
 
-export default function NewTaskModal({ presetCategory, navFilter, onClose, onCreated }) {
+export default function NewTaskModal({
+  presetCategory, navFilter, onClose, onCreated,
+  categories = [], threads = [], companies = [], users = [], profiles = [],
+  lookupsLoading = false,
+}) {
   const { session } = useAuth()
-  const { categories, threads, companies, users, loading: lookupsLoading } = useLookups()
-  const { profiles, loading: profilesLoading }                             = useProfiles()
 
-  const loading = lookupsLoading || profilesLoading
+  const loading = lookupsLoading
 
   const [form, setForm] = useState({
     title:       '',
@@ -73,7 +75,6 @@ export default function NewTaskModal({ presetCategory, navFilter, onClose, onCre
     onCreated(data)
   }
 
-  // Use profiles if available, fall back to users (dev mode has no profiles)
   const peopleList = profiles.length > 0 ? profiles : users.map(u => ({ ...u, full_name: u.name }))
   const shareableProfiles = peopleList.filter(p => p.id !== session?.user?.id)
 

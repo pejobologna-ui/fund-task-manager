@@ -1,14 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
-import { useLookups, useProfiles } from '../hooks/useTasks'
 import { useAuth } from '../context/AuthContext'
 import SharePicker, { EVERYONE } from './SharePicker'
 import StepEditorRows from './StepEditorRows'
 
-export default function NewThreadModal({ onClose, onCreated }) {
+export default function NewThreadModal({ onClose, onCreated, companies = [], users = [], profiles = [] }) {
   const { session } = useAuth()
-  const { companies, users } = useLookups()
-  const { profiles } = useProfiles()
 
   const [phase, setPhase] = useState('choose')   // 'choose' | 'templates' | 'edit'
   const [templates, setTemplates] = useState([])
