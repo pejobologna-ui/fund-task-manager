@@ -64,7 +64,7 @@ function ContextMenu({ x, y, items, onClose }) {
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 export default function Sidebar({
   view, onSetView, navFilter, onNavFilter, onOpenThread,
-  onNewThread, onEditThread, onManage, counts, tasks, profile,
+  onNewThread, onEditThread, onManage, onDataChanged, counts, tasks, profile,
 }) {
   const { signOut } = useAuth()
   const {
@@ -84,8 +84,9 @@ export default function Sidebar({
   // quickAdd: null | { kind: 'category'|'company-fund-level'|'company-in-fund'|'new-fund', fundId? }
   const [quickAdd, setQuickAdd]             = useState(null)
   const [quickVal, setQuickVal]             = useState('')
-  const renameInputRef = useRef(null)
-  const quickInputRef  = useRef(null)
+  const renameInputRef  = useRef(null)
+  const quickInputRef   = useRef(null)
+  const submittingRef   = useRef(false)
 
   function toggle(key) {
     setCollapsed(c => ({ ...c, [key]: !c[key] }))
@@ -124,6 +125,7 @@ export default function Sidebar({
       if (prefix === 'cat')  await renameCategory(id, v)
       if (prefix === 'co')   await updateCompany(id, { name: v })
       if (prefix === 'fund') await renameFund(id, v)
+      onDataChanged?.()
     }
     setRenamingId(null)
     setRenameVal('')
@@ -131,16 +133,22 @@ export default function Sidebar({
 
   // ── Quick-add helpers ──────────────────────────────────────────────────────
   async function commitQuickAdd() {
+    if (submittingRef.current) return
     const v = quickVal.trim()
     if (v && quickAdd) {
-      if (quickAdd.kind === 'category') {
-        await addCategory(v)
-      } else if (quickAdd.kind === 'company-fund-level') {
-        await addCompany({ name: v, type: 'other', fund: null, fund_id: null })
-      } else if (quickAdd.kind === 'company-in-fund') {
-        await addCompany({ name: v, type: 'portfolio', fund: null, fund_id: quickAdd.fundId })
-      } else if (quickAdd.kind === 'new-fund') {
-        await addFund(v)
+      submittingRef.current = true
+      try {
+        if (quickAdd.kind === 'category') {
+          await addCategory(v)
+        } else if (quickAdd.kind === 'company-fund-level') {
+          await addCompany({ name: v, type: 'other', fund: null, fund_id: null })
+        } else if (quickAdd.kind === 'company-in-fund') {
+          await addCompany({ name: v, type: 'portfolio', fund: null, fund_id: quickAdd.fundId })
+        } else if (quickAdd.kind === 'new-fund') {
+          await addFund(v)
+        }
+      } finally {
+        submittingRef.current = false
       }
     }
     setQuickAdd(null)
@@ -250,7 +258,7 @@ export default function Sidebar({
         ? ['divider', ...moveToFundLevel, ...moveFromFundLevel, ...moveToFund]
         : []),
       'divider',
-      { label: '✕ Delete', danger: true, action: () => deleteCompany(co.id) },
+      { label: '✕ Delete', danger: true, action: async () => { await deleteCompany(co.id); onDataChanged?.() } },
     ]
   }
 
@@ -342,7 +350,7 @@ export default function Sidebar({
                   { label: '✎ Rename', action: () => startRename('cat', cat.id, cat.name) },
                   { label: '⚙ Edit in Manage', action: () => onManage() },
                   'divider',
-                  { label: '✕ Delete', danger: true, action: () => deleteCategory(cat.id) },
+                  { label: '✕ Delete', danger: true, action: async () => { await deleteCategory(cat.id); onDataChanged?.() } },
                 ])}
               >
                 <div className="ftm-sdot" style={{ background: '#b8933e55', border: '1px solid #b8933e' }} />

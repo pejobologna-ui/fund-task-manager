@@ -134,6 +134,7 @@ export default function App() {
         onNewThread={() => setThreadModal(true)}
         onEditThread={id => setEditThreadId(id)}
         onManage={() => setManageOpen(true)}
+        onDataChanged={refetch}
         counts={counts}
         tasks={tasks}
         profile={profile}
@@ -196,6 +197,7 @@ export default function App() {
       {modalOpen && (
         <NewTaskModal
           presetCategory={modalPresetCat}
+          navFilter={navFilter}
           onClose={() => setModal(false)}
           onCreated={() => { refetch(); setModal(false) }}
         />

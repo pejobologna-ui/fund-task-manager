@@ -2,11 +2,9 @@ import { useState } from 'react'
 import { useLookups, useProfiles, createTaskWithShares } from '../hooks/useTasks'
 import { useAuth } from '../context/AuthContext'
 import { PRIORITIES } from '../constants'
-import VisibilityToggle from './VisibilityToggle'
+import SharePicker, { EVERYONE } from './SharePicker'
 
-const ROLE_LABELS = { gp: 'GP', associate: 'Associate', analyst: 'Analyst', viewer: 'Viewer' }
-
-export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
+export default function NewTaskModal({ presetCategory, navFilter, onClose, onCreated }) {
   const { session } = useAuth()
   const { categories, threads, companies, users, loading: lookupsLoading } = useLookups()
   const { profiles, loading: profilesLoading }                             = useProfiles()
@@ -22,53 +20,62 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
     assignee_id: '',
     priority:    'Medium',
     due_date:    '',
-    visibility:  'team',
   })
-  const [shareWith, setShareWith] = useState([])  // array of profile UUIDs
+  const [shareWith, setShareWith] = useState([EVERYONE])  // default: shared with everyone
   const [saving, setSaving]       = useState(false)
   const [err, setErr]             = useState(null)
+  const [defaultsApplied, setDefaultsApplied] = useState(false)
 
-  // Resolve preset category once lookups load
-  if (form.category_id === '' && categories.length > 0 && presetCategory) {
-    const found = categories.find(c => c.name === presetCategory)
-    if (found) setForm(f => ({ ...f, category_id: found.id }))
+  // Resolve preset category & navFilter defaults once lookups load
+  if (!defaultsApplied && categories.length > 0) {
+    const updates = {}
+
+    // presetCategory (from "Add task in <category>" button in task list)
+    if (presetCategory) {
+      const found = categories.find(c => c.name === presetCategory)
+      if (found) updates.category_id = found.id
+    }
+
+    // navFilter defaults: if user is viewing a specific category/company, pre-select it
+    if (navFilter) {
+      if (navFilter.type === 'category' && !updates.category_id) {
+        updates.category_id = navFilter.id
+      }
+      if (navFilter.type === 'company') {
+        updates.company_id = navFilter.id
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setForm(f => ({ ...f, ...updates }))
+    }
+    setDefaultsApplied(true)
   }
 
   function set(field, value) {
     setForm(f => ({ ...f, [field]: value }))
   }
 
-  function setVisibility(v) {
-    setForm(f => ({ ...f, visibility: v }))
-    if (v === 'team') setShareWith([])
-  }
-
-  const needsSharePicker = form.visibility === 'personal' || form.visibility === 'restricted'
-
-  function toggleShare(profileId) {
-    setShareWith(prev =>
-      prev.includes(profileId) ? prev.filter(id => id !== profileId) : [...prev, profileId]
-    )
-  }
-
   async function handleSave() {
     if (!form.title.trim()) { setErr('Title is required.'); return }
     if (!form.category_id)  { setErr('Category is required.'); return }
-    if (form.visibility === 'team' && !form.assignee_id) {
-      setErr('Assignee is required for team tasks.'); return
-    }
-    // restricted / personal tasks don't require an assignee
-    // thread_id and company_id are optional — empty string = null (No thread / No company)
+
+    // Derive visibility from shareWith
+    const isEveryone = shareWith.includes(EVERYONE)
+    const visibility = isEveryone ? 'team' : shareWith.length > 0 ? 'restricted' : 'personal'
+    const shareIds = isEveryone ? [] : shareWith
+
     setSaving(true)
     setErr(null)
-    const { data, error } = await createTaskWithShares(form, shareWith)
+    const { data, error } = await createTaskWithShares({ ...form, visibility }, shareIds)
     setSaving(false)
     if (error) { setErr(error.message); return }
     onCreated(data)
   }
 
-  // Exclude the current auth user from the share picker
-  const shareableProfiles = profiles.filter(p => p.id !== session?.user?.id)
+  // Use profiles if available, fall back to users (dev mode has no profiles)
+  const peopleList = profiles.length > 0 ? profiles : users.map(u => ({ ...u, full_name: u.name }))
+  const shareableProfiles = peopleList.filter(p => p.id !== session?.user?.id)
 
   return (
     <div className="ftm-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -84,15 +91,9 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
           ) : (
             <div className="ftm-fgrid">
 
-              {/* Visibility toggle — full width, first field */}
-              <div className="ftm-ff full">
-                <label className="ftm-flbl">Visibility</label>
-                <VisibilityToggle value={form.visibility} onChange={setVisibility} />
-              </div>
-
               <div className="ftm-ff full">
                 <label className="ftm-flbl">Title</label>
-                <input className="ftm-finput" placeholder="Task title…" value={form.title} onChange={e => set('title', e.target.value)} />
+                <input className="ftm-finput" placeholder="Task title…" value={form.title} onChange={e => set('title', e.target.value)} autoFocus />
               </div>
               <div className="ftm-ff full">
                 <label className="ftm-flbl">Description</label>
@@ -120,11 +121,10 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
                 </select>
               </div>
 
-              {/* Assignee: required for team, optional otherwise */}
               <div className="ftm-ff">
-                <label className="ftm-flbl">Assignee{form.visibility !== 'team' ? ' (optional)' : ''}</label>
+                <label className="ftm-flbl">Assignee</label>
                 <select className="ftm-fsel" value={form.assignee_id} onChange={e => set('assignee_id', e.target.value)}>
-                  <option value="">Select…</option>
+                  <option value="">— Unassigned —</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
                 </select>
               </div>
@@ -140,33 +140,15 @@ export default function NewTaskModal({ presetCategory, onClose, onCreated }) {
                 <input className="ftm-finput" type="date" value={form.due_date} onChange={e => set('due_date', e.target.value)} />
               </div>
 
-              {/* Share-with picker — shown for personal and restricted tasks */}
-              {needsSharePicker && shareableProfiles.length > 0 && (
-                <div className="ftm-ff full">
-                  <label className="ftm-flbl">Share with (optional)</label>
-                  <div className="ftm-share-picker">
-                    {shareableProfiles.map(p => {
-                      const checked = shareWith.includes(p.id)
-                      return (
-                        <div
-                          key={p.id}
-                          className={`ftm-share-row${checked ? ' selected' : ''}`}
-                          onClick={() => toggleShare(p.id)}
-                        >
-                          <div className="ftm-share-avatar">{p.initials ?? '?'}</div>
-                          <div className="ftm-share-info">
-                            <span className="ftm-share-name">{p.full_name}</span>
-                            <span className="ftm-share-role">{ROLE_LABELS[p.role] ?? p.role}</span>
-                          </div>
-                          <div className={`ftm-share-check${checked ? ' checked' : ''}`}>
-                            {checked ? '✓' : ''}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
+              {/* Share picker — replaces old visibility toggle */}
+              <div className="ftm-ff full">
+                <label className="ftm-flbl">Shared with</label>
+                <SharePicker
+                  selected={shareWith}
+                  onChange={setShareWith}
+                  profiles={shareableProfiles}
+                />
+              </div>
 
               {err && <div className="ftm-ff full" style={{ color: '#a32d2d', fontSize: 11 }}>{err}</div>}
             </div>

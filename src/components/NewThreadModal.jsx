@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabaseClient'
-import { useLookups } from '../hooks/useTasks'
+import { useLookups, useProfiles } from '../hooks/useTasks'
 import { useAuth } from '../context/AuthContext'
-import VisibilityToggle from './VisibilityToggle'
+import SharePicker, { EVERYONE } from './SharePicker'
 import StepEditorRows from './StepEditorRows'
 
 export default function NewThreadModal({ onClose, onCreated }) {
   const { session } = useAuth()
   const { companies, users } = useLookups()
+  const { profiles } = useProfiles()
 
   const [phase, setPhase] = useState('choose')   // 'choose' | 'templates' | 'edit'
   const [templates, setTemplates] = useState([])
@@ -18,7 +19,7 @@ export default function NewThreadModal({ onClose, onCreated }) {
   const [description, setDescription] = useState('')
   const [category, setCategory]     = useState('')
   const [companyId, setCompanyId]   = useState('')
-  const [visibility, setVisibility] = useState('team')
+  const [shareWith, setShareWith]   = useState([EVERYONE])
 
   // Steps — each step is a local object with a stable tempId
   const [steps, setSteps] = useState([])
@@ -97,6 +98,10 @@ export default function NewThreadModal({ onClose, onCreated }) {
 
     const isDev = import.meta.env.VITE_DEV_BYPASS_AUTH === 'true'
 
+    // Derive visibility from shareWith
+    const isEveryone = shareWith.includes(EVERYONE)
+    const visibility = isEveryone ? 'team' : shareWith.length > 0 ? 'restricted' : 'personal'
+
     const { data: thread, error: threadErr } = await supabase
       .from('threads')
       .insert({
@@ -111,6 +116,12 @@ export default function NewThreadModal({ onClose, onCreated }) {
       .single()
 
     if (threadErr) { setSaving(false); setErr(threadErr.message); return }
+
+    // Insert thread_shares for restricted visibility
+    if (visibility === 'restricted' && shareWith.length > 0) {
+      const shareRows = shareWith.map(uid => ({ thread_id: thread.id, shared_with: uid }))
+      await supabase.from('thread_shares').insert(shareRows)
+    }
 
     const stepRows = steps.map((s, i) => ({
       thread_id:   thread.id,
@@ -128,6 +139,10 @@ export default function NewThreadModal({ onClose, onCreated }) {
 
     onCreated(thread)
   }
+
+  // Use profiles if available, fall back to users (dev mode has no profiles)
+  const peopleList = profiles.length > 0 ? profiles : users.map(u => ({ ...u, full_name: u.name }))
+  const shareableProfiles = peopleList.filter(p => p.id !== session?.user?.id)
 
   return (
     <div className="ftm-overlay open" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -241,8 +256,12 @@ export default function NewThreadModal({ onClose, onCreated }) {
                   </select>
                 </div>
                 <div className="ftm-ff full">
-                  <label className="ftm-flbl">Visibility</label>
-                  <VisibilityToggle value={visibility} onChange={setVisibility} />
+                  <label className="ftm-flbl">Shared with</label>
+                  <SharePicker
+                    selected={shareWith}
+                    onChange={setShareWith}
+                    profiles={shareableProfiles}
+                  />
                 </div>
               </div>
 
