@@ -141,8 +141,22 @@ export default function ThreadPage({
     ? thread.visibility === 'team' || thread.created_by === null || thread.created_by === myUserId
     : false
 
+  // Editing step — rendered as a modal at the page root (not inside the pipeline)
+  const editingStep = steps.find(s => s.id === editingStepId) ?? null
+
   return (
     <div className="ftm-thread-page">
+
+      {/* ── Step edit modal ── */}
+      {editingStep && (
+        <StepEditPopover
+          step={editingStep}
+          users={users}
+          onSave={async (stepId, fields) => { await updateStep(stepId, fields) }}
+          onDelete={async (stepId) => { await deleteStep(stepId); setEditingStepId(null) }}
+          onClose={() => setEditingStepId(null)}
+        />
+      )}
 
       {/* ── Header ── */}
       <div className="ftm-thread-hdr">
@@ -179,33 +193,22 @@ export default function ThreadPage({
         <div className="ftm-pipeline-wrap">
           <div className="ftm-pipeline">
             {steps.map((step, i) => (
-              <div key={step.id} className="ftm-step-wrap" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <StepCard
-                    step={step}
-                    index={i}
-                    isActive={i === activeIdx}
-                    isDragging={dragIdx === i}
-                    isDragOver={dragOverIdx === i}
-                    onDragStart={() => setDragIdx(i)}
-                    onDragOver={() => setDragOverIdx(i)}
-                    onDrop={() => handleDrop(i)}
-                    onDragEnd={handleDragEnd}
-                    onCycleStatus={() => cycleStepStatus(step.id, step.status)}
-                    onEditStep={id => setEditingStepId(prev => prev === id ? null : id)}
-                  />
-                  {i < steps.length - 1 && (
-                    <div className={`ftm-step-connector${step.status === 'completed' ? ' done' : ''}`} />
-                  )}
-                </div>
-                {editingStepId === step.id && (
-                  <StepEditPopover
-                    step={step}
-                    users={users}
-                    onSave={async (stepId, fields) => { await updateStep(stepId, fields) }}
-                    onDelete={async (stepId) => { await deleteStep(stepId); setEditingStepId(null) }}
-                    onClose={() => setEditingStepId(null)}
-                  />
+              <div key={step.id} className="ftm-step-wrap" style={{ display: 'flex', alignItems: 'center' }}>
+                <StepCard
+                  step={step}
+                  index={i}
+                  isActive={i === activeIdx}
+                  isDragging={dragIdx === i}
+                  isDragOver={dragOverIdx === i}
+                  onDragStart={() => setDragIdx(i)}
+                  onDragOver={() => setDragOverIdx(i)}
+                  onDrop={() => handleDrop(i)}
+                  onDragEnd={handleDragEnd}
+                  onCycleStatus={() => cycleStepStatus(step.id, step.status)}
+                  onEditStep={id => setEditingStepId(id)}
+                />
+                {i < steps.length - 1 && (
+                  <div className={`ftm-step-connector${step.status === 'completed' ? ' done' : ''}`} />
                 )}
               </div>
             ))}

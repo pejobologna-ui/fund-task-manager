@@ -1,21 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 
 /**
- * StepEditPopover — inline edit panel rendered below a step card.
+ * StepEditModal — centred modal for editing a pipeline step.
+ * Replaces the old inline popover that broke the horizontal pipeline layout.
+ *
  * Props:
- *   step      — the step object from useThread (id, title, description, assignee, due_date)
+ *   step      — step object { id, title, description, assignee, due_date }
  *   users     — array of { id, name } from useLookups
  *   onSave(stepId, dbUpdates) — called on save
  *   onDelete(stepId)          — called on confirmed delete
- *   onClose()                 — called on cancel/close
+ *   onClose()                 — called on cancel / backdrop click
  */
 export default function StepEditPopover({ step, users, onSave, onDelete, onClose }) {
-  const [title, setTitle]           = useState(step.title ?? '')
+  const [title,       setTitle]       = useState(step.title       ?? '')
   const [description, setDescription] = useState(step.description ?? '')
-  const [assigneeId, setAssigneeId] = useState(step.assignee?.id ?? step.assigned_to ?? '')
-  const [dueDate, setDueDate]       = useState(step.due_date ?? '')
-  const [saving, setSaving]         = useState(false)
-  const [confirming, setConfirming] = useState(false)
+  const [assigneeId,  setAssigneeId]  = useState(step.assignee?.id ?? step.assigned_to ?? '')
+  const [dueDate,     setDueDate]     = useState(step.due_date ?? '')
+  const [saving,      setSaving]      = useState(false)
+  const [confirming,  setConfirming]  = useState(false)
   const confirmTimer = useRef(null)
 
   useEffect(() => () => clearTimeout(confirmTimer.current), [])
@@ -45,57 +47,86 @@ export default function StepEditPopover({ step, users, onSave, onDelete, onClose
   }
 
   return (
-    <div className="ftm-step-edit-panel" onClick={e => e.stopPropagation()}>
-      <div>
-        <label className="ftm-flbl">Title</label>
-        <input
-          autoFocus
-          className="ftm-finput"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSave(); if (e.key === 'Escape') onClose() }}
-        />
-      </div>
-      <div>
-        <label className="ftm-flbl">Description</label>
-        <textarea
-          className="ftm-fta"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          style={{ minHeight: 40, fontSize: 11 }}
-        />
-      </div>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <div style={{ flex: 1 }}>
-          <label className="ftm-flbl">Assignee</label>
-          <select className="ftm-fsel" value={assigneeId} onChange={e => setAssigneeId(e.target.value)}>
-            <option value="">Unassigned</option>
-            {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-          </select>
+    <div
+      className="ftm-overlay open"
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div className="ftm-modal" style={{ maxWidth: 440 }}>
+
+        {/* Header */}
+        <div className="ftm-mhdr">
+          <span className="ftm-mtitle">Edit step</span>
+          <button className="ftm-dclose" onClick={onClose}>×</button>
         </div>
-        <div style={{ flex: 1 }}>
-          <label className="ftm-flbl">Due date</label>
-          <input
-            type="date"
-            className="ftm-finput"
-            value={dueDate}
-            onChange={e => setDueDate(e.target.value)}
-          />
+
+        {/* Body */}
+        <div className="ftm-mbody">
+          <div className="ftm-fgrid">
+
+            <div className="ftm-ff full">
+              <label className="ftm-flbl">Title</label>
+              <input
+                autoFocus
+                className="ftm-finput"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter')  handleSave()
+                  if (e.key === 'Escape') onClose()
+                }}
+              />
+            </div>
+
+            <div className="ftm-ff full">
+              <label className="ftm-flbl">Description</label>
+              <textarea
+                className="ftm-fta"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                style={{ minHeight: 60 }}
+              />
+            </div>
+
+            <div className="ftm-ff">
+              <label className="ftm-flbl">Assignee</label>
+              <select
+                className="ftm-fsel"
+                value={assigneeId}
+                onChange={e => setAssigneeId(e.target.value)}
+              >
+                <option value="">— Unassigned —</option>
+                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+
+            <div className="ftm-ff">
+              <label className="ftm-flbl">Due date</label>
+              <input
+                type="date"
+                className="ftm-finput"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+              />
+            </div>
+
+          </div>
         </div>
-      </div>
-      <div style={{ display: 'flex', gap: 6, justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
-        <button
-          className={`ftm-manage-del${confirming ? ' confirm' : ''}`}
-          onClick={handleDeleteClick}
-        >
-          {confirming ? 'Confirm delete?' : '✕ Delete step'}
-        </button>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="ftm-gbtn" style={{ fontSize: 11 }} onClick={onClose}>Cancel</button>
-          <button className="ftm-btn" style={{ fontSize: 11 }} onClick={handleSave} disabled={saving}>
-            {saving ? '…' : 'Save'}
+
+        {/* Footer */}
+        <div className="ftm-mftr">
+          <button
+            className={`ftm-manage-del${confirming ? ' confirm' : ''}`}
+            style={{ marginRight: 'auto' }}
+            onClick={handleDeleteClick}
+          >
+            {confirming ? 'Confirm delete?' : '✕ Delete step'}
+          </button>
+          <button className="ftm-gbtn" onClick={onClose}>Cancel</button>
+          <button className="ftm-btn" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
+
       </div>
     </div>
   )
