@@ -197,6 +197,11 @@ export default function App() {
         onClose={() => select(null)}
         onToggle={toggleDone}
         onUpdateNotes={updateNotes}
+        onUpdate={updateField}
+        categories={categories}
+        threads={threads}
+        companies={companies}
+        users={users}
       />
 
       {modalOpen && (

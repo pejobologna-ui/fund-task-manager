@@ -136,16 +136,28 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-detail.open { width: 320px; min-width: 320px; overflow-y: auto; }
 .ftm-dhdr { padding: 14px 16px 10px; border-bottom: 0.5px solid var(--border); display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; }
 .ftm-dtitle { font-size: 13px; font-weight: 500; flex: 1; line-height: 1.45; color: var(--text); }
+/* Editable title in detail panel */
+.ftm-dtitle-input { flex: 1; font-size: 13px; font-weight: 500; line-height: 1.45; color: var(--text); background: transparent; border: none; outline: none; padding: 0; font-family: inherit; width: 100%; border-radius: var(--radius); }
+.ftm-dtitle-input:hover { background: var(--surface2); padding: 2px 5px; margin: -2px -5px; }
+.ftm-dtitle-input:focus { background: var(--surface2); padding: 2px 5px; margin: -2px -5px; box-shadow: 0 0 0 1.5px var(--navy); }
 .ftm-dclose { width: 24px; height: 24px; border-radius: 5px; border: none; background: none; cursor: pointer; color: var(--light); font-size: 16px; display: flex; align-items: center; justify-content: center; }
 .ftm-dclose:hover { background: var(--surface2); color: var(--text); }
-.ftm-dbody { padding: 14px 16px; }
+.ftm-dbody { padding: 14px 16px; overflow-y: auto; flex: 1; }
 .ftm-dsec { margin-bottom: 16px; }
 .ftm-dsec-t { font-size: 9px; font-weight: 500; color: var(--light); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; }
-.ftm-drow { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
-.ftm-dlbl { font-size: 11px; color: var(--muted); width: 68px; flex-shrink: 0; padding-top: 1px; }
+.ftm-drow { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.ftm-dlbl { font-size: 11px; color: var(--muted); width: 68px; flex-shrink: 0; }
 .ftm-dval { font-size: 11px; color: var(--text); }
+/* Select/date input inside detail rows */
+.ftm-dsel { flex: 1; font-size: 11px; font-family: inherit; color: var(--text); background: var(--surface2); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 3px 6px; outline: none; cursor: pointer; min-width: 0; }
+.ftm-dsel:focus { border-color: var(--navy); }
+/* Status / Priority clickable chips */
+.ftm-dchips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ftm-dchip { cursor: pointer; font-family: inherit; border: none; opacity: 0.45; transition: opacity 0.12s, box-shadow 0.12s; }
+.ftm-dchip:hover { opacity: 0.75; }
+.ftm-dchip.ftm-dchip-active { opacity: 1; box-shadow: 0 0 0 1.5px currentColor; }
 .ftm-ddesc { font-size: 12px; color: var(--muted); line-height: 1.6; }
-.ftm-dnotes { width: 100%; padding: 7px 9px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 12px; color: var(--text); background: var(--surface2); resize: vertical; min-height: 70px; outline: none; }
+.ftm-dnotes { width: 100%; box-sizing: border-box; padding: 7px 9px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 12px; color: var(--text); background: var(--surface2); resize: vertical; min-height: 70px; outline: none; }
 .ftm-dnotes:focus { border-color: var(--navy); }
 .ftm-actitem { display: flex; gap: 7px; margin-bottom: 8px; font-size: 11px; }
 .ftm-actdot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); margin-top: 4px; flex-shrink: 0; }
