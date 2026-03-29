@@ -178,6 +178,9 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-finput, .ftm-fsel, .ftm-fta { padding: 7px 9px; border: 0.5px solid var(--border2); border-radius: var(--radius); font-family: inherit; font-size: 12px; color: var(--text); background: var(--surface2); outline: none; transition: border-color 0.12s; }
 .ftm-finput:focus, .ftm-fsel:focus, .ftm-fta:focus { border-color: var(--navy); }
 .ftm-fta { resize: vertical; min-height: 60px; }
+.ftm-field-hint { font-size: 10px; color: #a07730; background: #fdf6e3; border: 0.5px solid #e8d9a0; border-radius: 4px; padding: 4px 7px; margin-top: 2px; line-height: 1.4; }
+.ftm-field-note { font-size: 10px; color: var(--muted); margin-top: 2px; font-style: italic; }
+.ftm-field-locked { opacity: 0.65; cursor: not-allowed; }
 .ftm-mftr { padding: 12px 20px 16px; display: flex; gap: 8px; justify-content: flex-end; border-top: 0.5px solid var(--border); }
 .ftm-gbtn { padding: 6px 12px; border-radius: var(--radius); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; border: 0.5px solid var(--border2); background: transparent; color: var(--muted); transition: all 0.12s; }
 .ftm-gbtn:hover { background: var(--surface2); color: var(--text); }
@@ -205,7 +208,7 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-cell-trigger { cursor: pointer; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; display: inline-flex; transition: background 0.1s; }
 .ftm-cell-trigger:hover { background: rgba(0,0,0,0.07); }
 .ftm-popover { position: fixed; z-index: 300; background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius); box-shadow: 0 4px 18px rgba(0,0,0,0.13); min-width: 130px; overflow: hidden; }
-.ftm-pop-list { display: flex; flex-direction: column; padding: 3px 0; }
+.ftm-pop-list { display: flex; flex-direction: column; padding: 3px 0; max-height: 260px; overflow-y: auto; }
 .ftm-pop-item { display: flex; align-items: center; gap: 7px; padding: 6px 10px; cursor: pointer; font-size: 12px; color: var(--text); transition: background 0.1s; white-space: nowrap; }
 .ftm-pop-item:hover { background: var(--surface2); }
 .ftm-pop-item.active { background: var(--gold-bg); }
@@ -222,13 +225,23 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-thread-page { flex: 1; display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
 
 /* Back button + thread header */
-.ftm-thread-hdr { display: flex; align-items: flex-start; gap: 14px; padding: 20px 22px 16px; border-bottom: 0.5px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.ftm-thread-hdr { display: flex; flex-direction: column; gap: 10px; padding: 20px 22px 16px; border-bottom: 0.5px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.ftm-thread-hdr-top { display: flex; align-items: center; gap: 10px; }
 .ftm-back-btn { font-size: 12px; color: var(--muted); background: none; border: 0.5px solid var(--border2); border-radius: 6px; padding: 5px 10px; cursor: pointer; flex-shrink: 0; margin-top: 3px; transition: color 0.1s, border-color 0.1s; }
 .ftm-back-btn:hover { color: var(--text); border-color: var(--navy); }
 .ftm-thread-info { flex: 1; min-width: 0; }
 .ftm-thread-name { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.ftm-thread-name-editable { cursor: text; border-bottom: 1px dashed transparent; transition: border-color 0.15s; }
+.ftm-thread-name-editable:hover { border-color: var(--border2); }
+.ftm-thread-name-edit { font-size: 20px; font-weight: 600; color: var(--text); line-height: 1.2; border: 1px solid var(--gold); border-radius: 4px; padding: 2px 6px; width: 100%; background: var(--gold-bg); }
 .ftm-thread-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.ftm-thread-desc { font-size: 12px; color: var(--muted); }
+.ftm-thread-desc { font-size: 12px; color: var(--muted); margin-top: 6px; }
+.ftm-thread-desc-editable { cursor: text; border-bottom: 1px dashed transparent; transition: border-color 0.15s; min-height: 18px; }
+.ftm-thread-desc-editable:hover { border-color: var(--border2); }
+.ftm-thread-desc-edit { font-size: 12px; color: var(--muted); border: 1px solid var(--gold); border-radius: 4px; padding: 4px 6px; width: 100%; background: var(--gold-bg); resize: vertical; }
+.ftm-thread-status-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.ftm-thread-created-by { font-size: 11px; color: var(--muted); }
+.ftm-thread-date { font-size: 11px; color: var(--light); }
 
 /* Section blocks */
 .ftm-section-block { padding: 20px 22px; border-bottom: 0.5px solid var(--border); }
@@ -236,8 +249,9 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-section-progress { font-size: 11px; color: var(--muted); font-weight: 400; letter-spacing: 0; text-transform: none; }
 
 /* ── Step pipeline ────────────────────────────────────────── */
-.ftm-pipeline-wrap { overflow-x: auto; padding-bottom: 6px; }
-.ftm-pipeline { display: flex; align-items: flex-start; gap: 0; padding: 4px 0 8px; min-width: max-content; }
+.ftm-pipeline-wrap { overflow-x: auto; padding-bottom: 2px; }
+.ftm-pipeline-wrap::-webkit-scrollbar { height: 2px; }
+.ftm-pipeline { display: flex; align-items: flex-start; gap: 0; padding: 4px 0 4px; min-width: max-content; }
 .ftm-step-wrap { display: flex; align-items: center; flex-shrink: 0; }
 .ftm-step-connector { width: 28px; height: 2px; background: var(--border2); flex-shrink: 0; transition: background 0.2s; }
 .ftm-step-connector.done { background: #7cc46a; }
@@ -380,6 +394,36 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-ssub-heading-clickable { cursor: pointer; border-radius: 4px; }
 .ftm-ssub-heading-clickable:hover { background: rgba(255,255,255,0.05); }
 .ftm-ssub-heading-clickable:hover .ftm-ssub-label { color: rgba(255,255,255,0.5); }
+.ftm-ssub-heading-clickable.active { background: rgba(184,147,62,0.15); }
+.ftm-ssub-heading-clickable.active .ftm-ssub-label { color: #b8933e; }
+.ftm-smacro-label { padding: 6px 6px 2px 10px; font-size: 8px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: rgba(255,255,255,0.22); }
+
+/* ── Thread meta inline editing ──────────────────────────────────────────── */
+/* Clickable meta elements (company badge, due date, etc.) */
+.ftm-thread-meta-btn { cursor: pointer !important; transition: opacity 0.15s; }
+.ftm-thread-meta-btn:hover { opacity: 0.72; }
+/* Placeholder chips for unset thread meta fields */
+.ftm-thread-meta-placeholder {
+  font-size: 11px;
+  color: #bbb;
+  cursor: pointer;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: 1px dashed #ddd;
+  background: none;
+  line-height: 1.5;
+  transition: border-color 0.15s, color 0.15s;
+}
+.ftm-thread-meta-placeholder:hover { border-color: #bbb; color: #888; }
+/* Group label inside CellPopover list (for company grouping) */
+.ftm-pop-group-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--light);
+  padding: 5px 10px 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 .ftm-ssub-chevron { font-size: 8px; color: rgba(255,255,255,0.25); transition: transform 0.15s; margin-right: 2px; display: inline-block; }
 .ftm-ssub-chevron.closed { transform: rotate(-90deg); }
 
@@ -415,3 +459,21 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-sp-opt-name { font-size: 12px; color: var(--text); }
 .ftm-sp-opt-sub { font-size: 10px; color: var(--light); }
 .ftm-sp-hint { font-size: 10px; color: var(--light); margin-top: 4px; font-style: italic; }
+
+/* ── Step table (ThreadPage bottom section) ── */
+.ftm-step-table { display: flex; flex-direction: column; gap: 1px; background: var(--border); border-radius: var(--radius); overflow: hidden; }
+.ftm-step-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface); transition: background 0.1s; }
+.ftm-step-row:hover { background: var(--surface2); }
+.ftm-step-row.done { opacity: 0.55; }
+.ftm-step-row-num { width: 22px; text-align: center; font-size: 12px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+.ftm-step-row.done .ftm-step-row-num { color: #3b6d11; }
+.ftm-step-row-title { flex: 1; min-width: 0; font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftm-step-row.done .ftm-step-row-title { text-decoration: line-through; }
+.ftm-step-row-due { font-size: 11px; color: var(--muted); min-width: 50px; text-align: right; flex-shrink: 0; }
+.ftm-step-row-edit { background: none; border: none; cursor: pointer; font-size: 13px; color: var(--light); padding: 2px 4px; border-radius: 4px; opacity: 0; transition: opacity 0.15s, color 0.1s; flex-shrink: 0; }
+.ftm-step-row:hover .ftm-step-row-edit { opacity: 1; }
+.ftm-step-row-edit:hover { color: var(--gold); }
+
+/* ── Template steps preview (SaveAsTemplateModal) ── */
+.ftm-template-steps-preview { list-style: decimal; padding-left: 20px; margin: 0; }
+.ftm-template-step-item { font-size: 13px; color: var(--text); padding: 3px 0; }

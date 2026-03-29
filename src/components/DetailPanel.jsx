@@ -1,5 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { STATUS_CLASS, PRIORITY_CLASS, STATUSES, PRIORITIES } from '../constants'
+
+function groupByMacro(categories) {
+  const order = ['Fund Operations', 'Investing', 'Portfolio Management', 'Reporting', 'Governance']
+  const groups = {}
+  categories.forEach(c => { const k = c.macro_category ?? 'Other'; (groups[k] ??= []).push(c) })
+  return [...order.filter(k => groups[k]), ...Object.keys(groups).filter(k => !order.includes(k)).sort()]
+    .map(k => ({ label: k, cats: groups[k] }))
+}
+
+function groupCompanies(companies) {
+  const sgr        = companies.filter(c => c.type === 'sgr')
+  const funds      = companies.filter(c => c.type === 'fund')
+  const withFund   = companies.filter(c => c.fund_id && c.type !== 'fund')
+  const unassigned = companies.filter(c => !c.fund_id && c.type !== 'fund' && c.type !== 'sgr')
+  const groups = []
+  if (sgr.length) groups.push({ label: 'SGR', items: sgr })
+  funds.forEach(f => {
+    const children = withFund.filter(c => c.fund_id === f.id)
+    if (children.length) groups.push({ label: f.name, items: children })
+  })
+  if (unassigned.length) groups.push({ label: 'Unassigned', items: unassigned })
+  return groups
+}
 
 export default function DetailPanel({
   task, onClose, onToggle, onUpdateNotes, onUpdate,
@@ -15,6 +38,9 @@ export default function DetailPanel({
     setDesc (task?.description ?? '')
     setNotes(task?.notes       ?? '')
   }, [task?.id])
+
+  const catGroups = useMemo(() => groupByMacro(categories), [categories])
+  const coGroups  = useMemo(() => groupCompanies(companies),  [companies])
 
   if (!task) return <div className="ftm-detail" />
 
@@ -110,7 +136,11 @@ export default function DetailPanel({
               }}
             >
               <option value="">— None —</option>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {catGroups.map(({ label, cats }) => (
+                <optgroup key={label} label={label}>
+                  {cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+              ))}
             </select>
           </div>
 
@@ -146,7 +176,11 @@ export default function DetailPanel({
               }}
             >
               <option value="">— None —</option>
-              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {coGroups.map(({ label, items }) => (
+                <optgroup key={label} label={label}>
+                  {items.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </optgroup>
+              ))}
             </select>
           </div>
 

@@ -1,21 +1,25 @@
 import { useState, useEffect, useRef } from 'react'
 
+const STATUSES = ['Open', 'In Progress', 'In Review', 'Done']
+
 /**
  * StepEditModal — centred modal for editing a pipeline step.
- * Replaces the old inline popover that broke the horizontal pipeline layout.
  *
  * Props:
- *   step      — step object { id, title, description, assignee, due_date }
- *   users     — array of { id, name } from useLookups
- *   onSave(stepId, dbUpdates) — called on save
+ *   step       — step object { id, title, description, assignee, due_date, category, status }
+ *   users      — array of { id, name } from useLookups
+ *   categories — array of { id, name } from useLookups (optional)
+ *   onSave(stepId, dbUpdates, stateUpdates) — called on save
  *   onDelete(stepId)          — called on confirmed delete
  *   onClose()                 — called on cancel / backdrop click
  */
-export default function StepEditPopover({ step, users, onSave, onDelete, onClose }) {
+export default function StepEditPopover({ step, users, categories, onSave, onDelete, onClose }) {
   const [title,       setTitle]       = useState(step.title       ?? '')
   const [description, setDescription] = useState(step.description ?? '')
-  const [assigneeId,  setAssigneeId]  = useState(step.assignee?.id ?? step.assigned_to ?? '')
+  const [assigneeId,  setAssigneeId]  = useState(step.assignee?.id ?? step.assignee_id ?? '')
   const [dueDate,     setDueDate]     = useState(step.due_date ?? '')
+  const [categoryId,  setCategoryId]  = useState(step.category?.id ?? step.category_id ?? '')
+  const [status,      setStatus]      = useState(step.status ?? 'Open')
   const [saving,      setSaving]      = useState(false)
   const [confirming,  setConfirming]  = useState(false)
   const confirmTimer = useRef(null)
@@ -25,12 +29,23 @@ export default function StepEditPopover({ step, users, onSave, onDelete, onClose
   async function handleSave() {
     if (!title.trim()) return
     setSaving(true)
-    await onSave(step.id, {
+    const dbUpdates = {
       title:       title.trim(),
       description: description.trim() || null,
-      assigned_to: assigneeId || null,
+      assignee_id: assigneeId || null,
       due_date:    dueDate    || null,
-    })
+      category_id: categoryId || null,
+      status,
+    }
+    // Build stateUpdates with resolved objects for optimistic UI
+    const assignee = assigneeId ? users.find(u => u.id === assigneeId) ?? null : null
+    const category = categoryId && categories ? categories.find(c => c.id === categoryId) ?? null : null
+    const stateUpdates = {
+      ...dbUpdates,
+      assignee,
+      category: category ? { id: category.id, name: category.name } : null,
+    }
+    await onSave(step.id, dbUpdates, stateUpdates)
     setSaving(false)
     onClose()
   }
@@ -86,6 +101,31 @@ export default function StepEditPopover({ step, users, onSave, onDelete, onClose
                 style={{ minHeight: 60 }}
               />
             </div>
+
+            <div className="ftm-ff">
+              <label className="ftm-flbl">Status</label>
+              <select
+                className="ftm-fsel"
+                value={status}
+                onChange={e => setStatus(e.target.value)}
+              >
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+
+            {categories && categories.length > 0 && (
+              <div className="ftm-ff">
+                <label className="ftm-flbl">Category</label>
+                <select
+                  className="ftm-fsel"
+                  value={categoryId}
+                  onChange={e => setCategoryId(e.target.value)}
+                >
+                  <option value="">— No category —</option>
+                  {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
 
             <div className="ftm-ff">
               <label className="ftm-flbl">Assignee</label>

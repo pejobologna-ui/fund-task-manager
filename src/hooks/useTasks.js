@@ -1,9 +1,73 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../supabaseClient'
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+// Normalise a profiles row into the { id, name, initials, role } shape that
+// all UI components expect (they were written against the old users table).
+function shapeProfile(p) {
+  if (!p) return null
+  return { id: p.id, name: p.full_name ?? p.name ?? '', initials: p.initials ?? '', role: p.role ?? '' }
+}
+
+// Resolve assignee_id → profile for an array of rows, avoiding the PostgREST
+// embedded-resource join (which depends on schema-cache awareness of the FK).
+async function attachAssignees(rows) {
+  const ids = [...new Set(rows.map(r => r.assignee_id).filter(Boolean))]
+  if (ids.length === 0) return rows.map(r => ({ ...r, assignee: null }))
+  const { data: profiles } = await supabase
+    .from('profiles').select('id, full_name, initials, role').in('id', ids)
+  const map = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
+  return rows.map(r => ({ ...r, assignee: shapeProfile(map[r.assignee_id] ?? null) }))
+}
+
+// ── Column-detection ─────────────────────────────────────────────────────────
+// Migration 012 adds macro_category, "order", threads.status, etc.
+// No module-level cache — schema can change after migrations are applied.
+async function schemaCols() {
+  const [catTest, taskTest, threadTest, tplTest, thAssigneeTest, thDueDateTest, thCatTest, thPriTest] = await Promise.all([
+    supabase.from('activity_categories').select('macro_category').limit(0),
+    supabase.from('tasks').select('"order"').limit(0),
+    supabase.from('threads').select('status').limit(0),
+    supabase.from('thread_templates').select('description').limit(0),
+    supabase.from('threads').select('assignee_id').limit(0),
+    supabase.from('threads').select('due_date').limit(0),
+    supabase.from('threads').select('category_id').limit(0),
+    supabase.from('threads').select('priority').limit(0),
+  ])
+  return {
+    hasMacroCategory:  !catTest.error,
+    hasOrder:          !taskTest.error,
+    hasThreadStatus:   !threadTest.error,
+    hasTplDescription: !tplTest.error,
+    hasThreadAssignee: !thAssigneeTest.error,
+    hasThreadDueDate:  !thDueDateTest.error,
+    hasThreadCategory: !thCatTest.error,
+    hasThreadPriority: !thPriTest.error,
+  }
+}
+
+// Build select fragments based on detected schema
+function catSelect(s) {
+  return s.hasMacroCategory
+    ? 'category:activity_categories(id, name, macro_category)'
+    : 'category:activity_categories(id, name)'
+}
+function threadEmbed(s) {
+  return s.hasThreadStatus
+    ? 'thread:threads(id, name, status)'
+    : 'thread:threads(id, name)'
+}
+function threadEmbedFull(s) {
+  return s.hasThreadStatus
+    ? 'thread:threads!thread_id(id, name, status, company:companies(id, name, type))'
+    : 'thread:threads!thread_id(id, name, company:companies(id, name, type))'
+}
+
+// ── useTasks ─────────────────────────────────────────────────────────────────
 /**
- * Fetches all tasks with their related data joined.
- * Returns { tasks, loading, error, refetch, toggleDone, updateNotes }
+ * Fetches standalone tasks (thread_id IS NULL) with their related data joined.
+ * Thread tasks are surfaced separately via useActiveSteps / useThread.
  */
 export function useTasks() {
   const [tasks, setTasks] = useState([])
@@ -13,25 +77,28 @@ export function useTasks() {
   const fetch = useCallback(async () => {
     setLoading(true)
     setError(null)
+    const s = await schemaCols()
+    const cols = [
+      'id, title, description, status, priority, due_date, notes, created_at',
+      'visibility, created_by, assignee_id',
+      s.hasOrder ? '"order"' : null,
+      catSelect(s),
+      threadEmbed(s),
+      'company:companies(id, name, type, fund_id)',
+    ].filter(Boolean).join(',\n        ')
+
     const { data, error } = await supabase
       .from('tasks')
-      .select(`
-        id, title, description, status, priority, due_date, notes, created_at,
-        visibility, created_by,
-        category:activity_categories(id, name),
-        thread:threads(id, name),
-        company:companies(id, name, type, fund),
-        assignee:users(id, name, initials, role)
-      `)
+      .select(cols)
+      .is('thread_id', null)
       .order('created_at', { ascending: false })
 
     if (error) {
       setError(error.message)
     } else {
-      // Deduplicate by id — RLS policies that join through task_shares can cause
-      // PostgREST to return one row per matching share row.
       const seen = new Set()
-      setTasks(data.filter(t => seen.has(t.id) ? false : seen.add(t.id)))
+      const unique = (data ?? []).filter(t => seen.has(t.id) ? false : seen.add(t.id))
+      setTasks(await attachAssignees(unique))
     }
     setLoading(false)
   }, [])
@@ -41,45 +108,26 @@ export function useTasks() {
   const toggleDone = useCallback(async (taskId, currentStatus) => {
     const newStatus = currentStatus === 'Done' ? 'Open' : 'Done'
     const { error } = await supabase
-      .from('tasks')
-      .update({ status: newStatus })
-      .eq('id', taskId)
-
-    if (!error) {
-      setTasks(prev =>
-        prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t)
-      )
-    }
+      .from('tasks').update({ status: newStatus }).eq('id', taskId)
+    if (!error) setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t))
     return error
   }, [])
 
   const updateNotes = useCallback(async (taskId, notes) => {
     const { error } = await supabase
-      .from('tasks')
-      .update({ notes })
-      .eq('id', taskId)
-
-    if (!error) {
-      setTasks(prev =>
-        prev.map(t => t.id === taskId ? { ...t, notes } : t)
-      )
-    }
+      .from('tasks').update({ notes }).eq('id', taskId)
+    if (!error) setTasks(prev => prev.map(t => t.id === taskId ? { ...t, notes } : t))
     return error
   }, [])
 
-  // Generic field updater. dbUpdates goes to Supabase; stateUpdates is merged
-  // into local state (pass it when you also need to update nested objects like
-  // the full `assignee` record alongside the FK column).
   const updateField = useCallback(async (taskId, dbUpdates, stateUpdates) => {
     const { error } = await supabase
-      .from('tasks')
-      .update(dbUpdates)
-      .eq('id', taskId)
-
+      .from('tasks').update(dbUpdates).eq('id', taskId)
     if (!error) {
-      setTasks(prev =>
-        prev.map(t => t.id === taskId ? { ...t, ...(stateUpdates ?? dbUpdates) } : t)
-      )
+      setTasks(prev => prev.map(t => t.id === taskId
+        ? { ...t, ...(stateUpdates ?? dbUpdates) }
+        : t
+      ))
     }
     return error
   }, [])
@@ -87,26 +135,64 @@ export function useTasks() {
   return { tasks, loading, error, refetch: fetch, toggleDone, updateNotes, updateField }
 }
 
+// ── useLookups ────────────────────────────────────────────────────────────────
 /**
- * Fetches lookup data needed to populate the "New task" form.
+ * Fetches lookup data for dropdowns: categories, threads, companies, users.
+ * users is sourced from profiles (shaped as { id, name, initials, role }).
  */
 export function useLookups() {
-  const [lookups, setLookups] = useState({ categories: [], threads: [], companies: [], users: [] })
+  const [lookups, setLookups] = useState({
+    categories: [], threads: [], companies: [], users: [], threadProgress: {},
+  })
   const [loading, setLoading] = useState(true)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
-    const [cats, threads, cos, users] = await Promise.all([
-      supabase.from('activity_categories').select('id, name').order('name'),
-      supabase.from('threads').select('id, name').order('name'),
-      supabase.from('companies').select('id, name, type, fund').order('name'),
-      supabase.from('users').select('id, name, initials, role').order('name'),
+    const s = await schemaCols()
+    const catCols = s.hasMacroCategory ? 'id, name, macro_category' : 'id, name'
+    const thCols  = s.hasThreadStatus
+      ? 'id, name, status, template_id, company_id, company:companies(id, name, type)'
+      : 'id, name, company_id, company:companies(id, name, type)'
+    const [cats, threads, cos, profs] = await Promise.all([
+      supabase.from('activity_categories').select(catCols).order('name'),
+      supabase.from('threads').select(thCols).order('name'),
+      supabase.from('companies').select('id, name, type, fund_id').order('name'),
+      supabase.from('profiles').select('id, full_name, initials, role').order('full_name'),
     ])
+
+    // Thread progress: try thread_steps (pre-012), fall back to tasks
+    let stepRows
+    const { data: tsData, error: tsErr } = await supabase
+      .from('thread_steps').select('thread_id, status')
+    if (tsErr) {
+      const { data: tkData } = await supabase
+        .from('tasks').select('thread_id, status').not('thread_id', 'is', null)
+      stepRows = tkData
+    } else {
+      stepRows = tsData
+    }
+    const threadProgress = {}
+    ;(stepRows ?? []).forEach(row => {
+      if (!row.thread_id) return
+      if (!threadProgress[row.thread_id]) threadProgress[row.thread_id] = { done: 0, total: 0 }
+      threadProgress[row.thread_id].total++
+      if (row.status === 'completed' || row.status === 'Done') threadProgress[row.thread_id].done++
+    })
+
+    // Use profiles if available, fall back to legacy users table (display-only —
+    // legacy IDs are text, not UUID, so they can't be used as assignee_id FKs).
+    let userList = (profs.data ?? []).map(shapeProfile)
+    if (userList.length === 0) {
+      const { data: legacyUsers } = await supabase.from('users').select('id, name, initials, role').order('name')
+      userList = (legacyUsers ?? []).map(u => ({ ...u, _legacy: true }))
+    }
+
     setLookups({
-      categories: cats.data ?? [],
+      categories: cats.data   ?? [],
       threads:    threads.data ?? [],
-      companies:  cos.data ?? [],
-      users:      users.data ?? [],
+      companies:  cos.data    ?? [],
+      users:      userList,
+      threadProgress,
     })
     setLoading(false)
   }, [])
@@ -116,9 +202,7 @@ export function useLookups() {
   return { ...lookups, loading, refetch: fetchAll }
 }
 
-/**
- * Fetches all profiles (for the share-with picker in the new task modal).
- */
+// ── useProfiles ───────────────────────────────────────────────────────────────
 export function useProfiles() {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading]   = useState(true)
@@ -134,155 +218,370 @@ export function useProfiles() {
   return { profiles, loading }
 }
 
+// ── useTemplates ──────────────────────────────────────────────────────────────
 /**
- * Fetches a single thread with its steps for the Thread detail page.
- * Exposes add / update-status / reorder mutations.
+ * Lightweight hook — fetches thread_templates for the category-hint feature.
+ * Returns a plain array (no loading state needed — hint degrades gracefully).
+ */
+export function useTemplates() {
+  const [templates, setTemplates] = useState([])
+  useEffect(() => {
+    supabase
+      .from('thread_templates')
+      .select('id, name, steps')
+      .order('name')
+      .then(({ data }) => setTemplates(data ?? []))
+  }, [])
+  return templates
+}
+
+// ── useThread ─────────────────────────────────────────────────────────────────
+/**
+ * Fetches a single thread with all its tasks (ordered by "order" if available).
  */
 export function useThread(threadId) {
   const [thread, setThread] = useState(null)
-  const [steps,  setSteps]  = useState([])
+  const [tasks,  setTasks]  = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetchThread = useCallback(async () => {
     if (!threadId) return
     setLoading(true)
-    const [{ data: th }, { data: st }] = await Promise.all([
-      supabase
-        .from('threads')
-        .select('id, name, category, description, visibility, created_by, created_at, company:companies(id, name, type)')
-        .eq('id', threadId)
-        .single(),
-      supabase
-        .from('thread_steps')
-        .select('id, thread_id, title, description, "order", status, due_date, created_at, assignee:profiles!assigned_to(id, full_name, initials)')
-        .eq('thread_id', threadId)
-        .order('"order"', { ascending: true }),
+    const s = await schemaCols()
+    const thColParts = [
+      'id, name, description, created_by, created_at',
+      s.hasThreadStatus ? 'status, template_id' : null,
+      'company_id, company:companies(id, name, type)',
+    ].filter(Boolean)
+    if (s.hasThreadAssignee) thColParts.push('assignee_id')
+    if (s.hasThreadDueDate)  thColParts.push('due_date')
+    if (s.hasThreadCategory) thColParts.push('category_id, category:activity_categories(id, name, macro_category)')
+    if (s.hasThreadPriority) thColParts.push('priority')
+    const thCols = thColParts.join(', ')
+
+    const tkCols = [
+      'id, title, description, status, priority, due_date, notes, created_at, assignee_id',
+      s.hasOrder ? '"order"' : null,
+      catSelect(s),
+      'company:companies(id, name, type)',
+    ].filter(Boolean).join(',\n          ')
+
+    const query = supabase.from('tasks').select(tkCols).eq('thread_id', threadId)
+    if (s.hasOrder) query.order('"order"', { ascending: true })
+    else query.order('created_at', { ascending: true })
+
+    const [{ data: th }, { data: tk }] = await Promise.all([
+      supabase.from('threads').select(thCols).eq('id', threadId).single(),
+      query,
     ])
-    setThread(th ?? null)
-    setSteps(st ?? [])
+
+    // Resolve thread assignee via the shared helper (avoids FK schema-cache issues)
+    let threadRow = th ?? null
+    if (threadRow && s.hasThreadAssignee) {
+      ;[threadRow] = await attachAssignees([threadRow])
+    }
+
+    setThread(threadRow)
+    setTasks(await attachAssignees(tk ?? []))
     setLoading(false)
   }, [threadId])
 
   useEffect(() => { fetchThread() }, [fetchThread])
 
-  const addStep = useCallback(async (title) => {
-    const nextOrder = steps.length > 0 ? Math.max(...steps.map(s => s.order)) + 1 : 0
-    const { data, error } = await supabase
-      .from('thread_steps')
-      .insert({ thread_id: threadId, title, order: nextOrder, status: 'pending' })
-      .select('id, thread_id, title, description, "order", status, due_date, created_at, assignee:profiles!assigned_to(id, full_name, initials)')
-      .single()
-    if (!error) setSteps(prev => [...prev, data])
-    return error
-  }, [threadId, steps])
+  // Add a new task at the end of the thread, inheriting thread-level attributes
+  const addTask = useCallback(async (title) => {
+    const s = await schemaCols()
+    const insertFields = {
+      thread_id:  threadId,
+      title,
+      status:     'Open',
+      priority:   (s.hasThreadPriority && thread?.priority) ? thread.priority : 'Medium',
+      visibility: 'team',
+      notes:       '',
+    }
+    // Inherit company, category, and priority from the thread when set
+    if (thread?.company_id)                              insertFields.company_id  = thread.company_id
+    if (s.hasThreadCategory && thread?.category_id)      insertFields.category_id = thread.category_id
+    if (s.hasOrder) {
+      insertFields.order = tasks.length > 0 ? Math.max(...tasks.map(t => t.order ?? 0)) + 1 : 0
+    }
 
-  const STATUS_CYCLE = { pending: 'in_progress', in_progress: 'completed', completed: 'pending' }
-  const cycleStepStatus = useCallback(async (stepId, currentStatus) => {
-    const next = STATUS_CYCLE[currentStatus] ?? 'pending'
-    const { error } = await supabase.from('thread_steps').update({ status: next }).eq('id', stepId)
-    if (!error) setSteps(prev => prev.map(s => s.id === stepId ? { ...s, status: next } : s))
+    const selCols = [
+      'id, title, description, status, priority, due_date, notes, created_at, assignee_id',
+      s.hasOrder ? '"order"' : null,
+      catSelect(s),
+      'company:companies(id, name, type)',
+    ].filter(Boolean).join(',\n        ')
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert(insertFields)
+      .select(selCols)
+      .single()
+    if (!error) {
+      const [shaped] = await attachAssignees([data])
+      setTasks(prev => [...prev, shaped])
+    }
+    return error
+  }, [threadId, tasks, thread])
+
+  // Cycle task status: Open → In Progress → In Review → Done → Open
+  const STATUS_CYCLE = {
+    'Open':      'In Progress',
+    'In Progress': 'In Review',
+    'In Review': 'Done',
+    'Done':      'Open',
+  }
+  const cycleTaskStatus = useCallback(async (taskId, currentStatus) => {
+    const next = STATUS_CYCLE[currentStatus] ?? 'Open'
+    const { error } = await supabase.from('tasks').update({ status: next }).eq('id', taskId)
+    if (!error) setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: next } : t))
     return error
   }, [])
 
-  const reorderSteps = useCallback(async (reordered) => {
-    setSteps(reordered) // optimistic
-    await Promise.all(reordered.map((s, i) =>
-      supabase.from('thread_steps').update({ order: i }).eq('id', s.id)
+  const reorderTasks = useCallback(async (reordered) => {
+    setTasks(reordered)
+    await Promise.all(reordered.map((t, i) =>
+      supabase.from('tasks').update({ order: i }).eq('id', t.id)
     ))
   }, [])
 
-  const updateStep = useCallback(async (stepId, dbUpdates) => {
-    const { error } = await supabase.from('thread_steps').update(dbUpdates).eq('id', stepId)
-    if (!error) setSteps(prev => prev.map(s => s.id === stepId ? { ...s, ...dbUpdates } : s))
+  const updateTask = useCallback(async (taskId, dbUpdates, stateUpdates) => {
+    const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', taskId)
+    if (!error) setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...(stateUpdates ?? dbUpdates) } : t))
     return error
   }, [])
 
-  const deleteStep = useCallback(async (stepId) => {
-    const { error } = await supabase.from('thread_steps').delete().eq('id', stepId)
-    if (!error) setSteps(prev => prev.filter(s => s.id !== stepId))
+  const deleteTask = useCallback(async (taskId) => {
+    const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+    if (!error) setTasks(prev => prev.filter(t => t.id !== taskId))
     return error
   }, [])
 
-  return { thread, steps, loading, refetch: fetchThread, addStep, cycleStepStatus, reorderSteps, updateStep, deleteStep }
+  // Update thread metadata (name, description, status, company_id, assignee_id, due_date).
+  // stateUpdates lets callers patch nested objects (e.g. { company: {id,name,type} })
+  // that differ from the raw DB field names stored in fields.
+  const updateThread = useCallback(async (fields, stateUpdates = {}) => {
+    // Optimistic update — apply immediately, rollback on error
+    let snapshot = null
+    setThread(prev => {
+      snapshot = prev
+      return prev ? { ...prev, ...fields, ...stateUpdates } : prev
+    })
+    const { error } = await supabase.from('threads').update(fields).eq('id', threadId)
+    if (error && snapshot) setThread(snapshot)
+    return error
+  }, [threadId])
+
+  // Bulk-update all current tasks in this thread then refetch for fresh nested data.
+  const cascadeToTasks = useCallback(async (fields) => {
+    if (!tasks.length) return null
+    const ids = tasks.map(t => t.id)
+    const { error } = await supabase.from('tasks').update(fields).in('id', ids)
+    if (!error) await fetchThread()
+    return error
+  }, [tasks, fetchThread])
+
+  // Bulk-insert tasks from a template into this thread
+  const addMultipleTasks = useCallback(async (taskRows) => {
+    const { error } = await supabase.from('tasks').insert(taskRows)
+    if (!error) await fetchThread()
+    return error
+  }, [fetchThread])
+
+  // Delete thread and all its tasks
+  const deleteThread = useCallback(async () => {
+    // Delete tasks first (foreign key), then thread
+    await supabase.from('tasks').delete().eq('thread_id', threadId)
+    const { error } = await supabase.from('threads').delete().eq('id', threadId)
+    return error
+  }, [threadId])
+
+  return {
+    thread, tasks, loading, refetch: fetchThread,
+    addTask, cycleTaskStatus, reorderTasks, updateTask, deleteTask,
+    updateThread, cascadeToTasks, addMultipleTasks, deleteThread,
+  }
 }
 
+// ── useActiveSteps ────────────────────────────────────────────────────────────
 /**
- * Creates a new task and inserts task_shares rows for personal tasks.
- * shareWithIds: array of profile UUIDs to share with (may be empty).
+ * Returns one "active task" per thread — the first non-Done task (by order) —
+ * shaped with _isStep / _threadId markers for routing in App.jsx.
+ */
+export function useActiveSteps() {
+  const [activeSteps, setActiveSteps] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchSteps = useCallback(async () => {
+    setLoading(true)
+    const s = await schemaCols()
+    const cols = [
+      'id, title, description, status, priority, due_date, created_at',
+      'thread_id, assignee_id',
+      s.hasOrder ? '"order"' : null,
+      threadEmbedFull(s),
+      catSelect(s),
+    ].filter(Boolean).join(',\n        ')
+
+    const query = supabase.from('tasks').select(cols)
+      .not('thread_id', 'is', null)
+      .neq('status', 'Done')
+    if (s.hasOrder) query.order('"order"', { ascending: true })
+    else query.order('created_at', { ascending: true })
+
+    const { data, error } = await query
+
+    if (!error && data) {
+      // Group by thread, keep first (lowest order) per thread
+      const byThread = {}
+      for (const task of data) {
+        if (!byThread[task.thread_id]) byThread[task.thread_id] = task
+      }
+      const withAssignees = await attachAssignees(Object.values(byThread))
+      setActiveSteps(withAssignees.map(task => ({
+        ...task,
+        // category fallback for tasks without an explicit category
+        category: task.category ?? { id: null, name: 'Threads', macro_category: null },
+        company:  task.thread?.company ?? null,
+        thread:   task.thread ? { id: task.thread_id, name: task.thread.name } : null,
+        visibility: 'team',
+        notes: '',
+        created_by: null,
+        _isStep:   true,
+        _threadId: task.thread_id,
+      })))
+    }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetchSteps() }, [fetchSteps])
+
+  // Cycle step-task status — same as a regular task but refetches after
+  const STATUS_CYCLE = { 'Open': 'In Progress', 'In Progress': 'In Review', 'In Review': 'Done' }
+
+  const cycleActiveStep = useCallback(async (taskId, currentStatus) => {
+    const next = STATUS_CYCLE[currentStatus] ?? 'Done'
+    const { error } = await supabase.from('tasks').update({ status: next }).eq('id', taskId)
+    if (!error) fetchSteps()
+    return error
+  }, [fetchSteps])
+
+  const updateActiveStep = useCallback(async (taskId, dbUpdates) => {
+    const { error } = await supabase.from('tasks').update(dbUpdates).eq('id', taskId)
+    if (!error) fetchSteps()
+    return error
+  }, [fetchSteps])
+
+  return { activeSteps, loading, refetch: fetchSteps, cycleActiveStep, updateActiveStep }
+}
+
+// ── createTaskWithShares ──────────────────────────────────────────────────────
+/**
+ * Creates a new task and inserts task_shares rows for personal/restricted tasks.
  */
 export async function createTaskWithShares(fields, shareWithIds = []) {
+  const s = await schemaCols()
+  const insertFields = {
+    title:       fields.title,
+    description: fields.description || null,
+    status:      fields.status || 'Open',
+    priority:    fields.priority,
+    due_date:    fields.due_date    || null,
+    notes:       '',
+    visibility:  fields.visibility  ?? 'team',
+    category_id: fields.category_id || null,
+    thread_id:   fields.thread_id   || null,
+    company_id:  fields.company_id  || null,
+    assignee_id: fields.assignee_id || null,
+  }
+  if (s.hasOrder) insertFields.order = fields.order ?? null
+
+  const selCols = [
+    'id, title, description, status, priority, due_date, notes, created_at',
+    'visibility, created_by, assignee_id',
+    s.hasOrder ? '"order"' : null,
+    catSelect(s),
+    threadEmbed(s),
+    'company:companies(id, name, type, fund_id)',
+  ].filter(Boolean).join(',\n      ')
+
   const { data: task, error: taskError } = await supabase
     .from('tasks')
-    .insert([{
-      title:       fields.title,
-      description: fields.description || null,
-      status:      'Open',
-      priority:    fields.priority,
-      due_date:    fields.due_date || null,
-      notes:       '',
-      visibility:  fields.visibility ?? 'team',
-      category_id: fields.category_id,
-      thread_id:   fields.thread_id   || null,
-      company_id:  fields.company_id  || null,
-      assignee_id: fields.assignee_id || null,
-    }])
-    .select(`
-      id, title, description, status, priority, due_date, notes, created_at,
-      visibility, created_by,
-      category:activity_categories(id, name),
-      thread:threads(id, name),
-      company:companies(id, name, type, fund),
-      assignee:users(id, name, initials, role)
-    `)
+    .insert([insertFields])
+    .select(selCols)
     .single()
 
   if (taskError) return { data: null, error: taskError }
 
-  // Insert task_shares for both 'personal' and 'restricted' visibility
   if ((fields.visibility === 'personal' || fields.visibility === 'restricted') && shareWithIds.length > 0) {
     const rows = shareWithIds.map(uid => ({ task_id: task.id, shared_with: uid }))
     const { error: sharesError } = await supabase.from('task_shares').insert(rows)
     if (sharesError) return { data: task, error: sharesError }
   }
 
-  return { data: task, error: null }
+  const [shaped] = await attachAssignees([task])
+  return { data: shaped, error: null }
 }
 
+// ── createTemplate ────────────────────────────────────────────────────────────
+export async function createTemplate(fields) {
+  const s = await schemaCols()
+  const selCols = s.hasTplDescription
+    ? 'id, name, category, description, steps'
+    : 'id, name, category, steps'
+  const { data, error } = await supabase
+    .from('thread_templates')
+    .insert(fields)
+    .select(selCols)
+    .single()
+  return { data, error }
+}
+
+// ── useManage ─────────────────────────────────────────────────────────────────
 /**
- * Manages the three shared reference tables: activity_categories, companies,
- * and thread_templates. Provides optimistic CRUD for all three.
+ * Manages categories, companies, and thread_templates.
+ * Funds are companies with type='fund' — derived from companies list.
  */
 export function useManage() {
   const [categories, setCategories] = useState([])
   const [companies,  setCompanies]  = useState([])
   const [templates,  setTemplates]  = useState([])
-  const [funds,      setFunds]      = useState([])
   const [loading, setLoading]       = useState(true)
 
   const refetch = useCallback(async () => {
     setLoading(true)
-    const [{ data: cats }, { data: cos }, { data: tpls }, { data: fds }] = await Promise.all([
-      supabase.from('activity_categories').select('id, name, visibility, created_by').order('name'),
-      supabase.from('companies').select('id, name, type, fund, fund_id').order('name'),
-      supabase.from('thread_templates').select('id, name, category, steps').order('name'),
-      supabase.from('funds').select('id, name').order('name'),
+    const s = await schemaCols()
+    const catCols = s.hasMacroCategory ? 'id, name, macro_category' : 'id, name'
+    const tplCols = s.hasTplDescription
+      ? 'id, name, category, description, steps'
+      : 'id, name, category, steps'
+    const [{ data: cats }, { data: cos }, { data: tpls }] = await Promise.all([
+      supabase.from('activity_categories').select(catCols).order('name'),
+      supabase.from('companies').select('id, name, type, fund_id').order('name'),
+      supabase.from('thread_templates').select(tplCols).order('name'),
     ])
     setCategories(cats ?? [])
     setCompanies(cos   ?? [])
     setTemplates(tpls  ?? [])
-    setFunds(fds       ?? [])
     setLoading(false)
   }, [])
 
   useEffect(() => { refetch() }, [refetch])
 
-  // ── Categories ──────────────────────────────────────────────────────────
-  const addCategory = useCallback(async (name) => {
-    const tmp = { id: `tmp-${Date.now()}`, name, visibility: 'team', created_by: null }
+  // Derived: fund companies (type='fund') act as the old "funds" list
+  const funds = useMemo(() => companies.filter(c => c.type === 'fund'), [companies])
+
+  // ── Categories ──────────────────────────────────────────────────────────────
+  const addCategory = useCallback(async (name, macro_category = null) => {
+    const tmp = { id: `tmp-${Date.now()}`, name, macro_category }
     setCategories(prev => [...prev, tmp])
+    const s = await schemaCols()
+    const insertFields = s.hasMacroCategory ? { name, macro_category } : { name }
+    const selCols = s.hasMacroCategory ? 'id, name, macro_category' : 'id, name'
     const { data, error } = await supabase
-      .from('activity_categories').insert({ name })
-      .select('id, name, visibility, created_by').single()
+      .from('activity_categories').insert(insertFields)
+      .select(selCols).single()
     if (error) { setCategories(prev => prev.filter(c => c.id !== tmp.id)); return error }
     setCategories(prev => prev.map(c => c.id === tmp.id ? data : c))
     return null
@@ -295,9 +594,9 @@ export function useManage() {
     return null
   }, [refetch])
 
-  const updateCategoryVisibility = useCallback(async (id, visibility) => {
-    setCategories(prev => prev.map(c => c.id === id ? { ...c, visibility } : c))
-    const { error } = await supabase.from('activity_categories').update({ visibility }).eq('id', id)
+  const updateCategory = useCallback(async (id, fields) => {
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...fields } : c))
+    const { error } = await supabase.from('activity_categories').update(fields).eq('id', id)
     if (error) { refetch(); return error }
     return null
   }, [refetch])
@@ -309,13 +608,13 @@ export function useManage() {
     return null
   }, [refetch])
 
-  // ── Companies ───────────────────────────────────────────────────────────
+  // ── Companies ───────────────────────────────────────────────────────────────
   const addCompany = useCallback(async (fields) => {
     const tmp = { id: `tmp-${Date.now()}`, ...fields }
     setCompanies(prev => [...prev, tmp])
     const { data, error } = await supabase
       .from('companies').insert(fields)
-      .select('id, name, type, fund, fund_id').single()
+      .select('id, name, type, fund_id').single()
     if (error) { setCompanies(prev => prev.filter(c => c.id !== tmp.id)); return error }
     setCompanies(prev => prev.map(c => c.id === tmp.id ? data : c))
     return null
@@ -330,46 +629,37 @@ export function useManage() {
 
   const deleteCompany = useCallback(async (id) => {
     setCompanies(prev => prev.filter(c => c.id !== id))
+    // Null out fund_id for child companies
+    setCompanies(prev => prev.map(c => c.fund_id === id ? { ...c, fund_id: null } : c))
     const { error } = await supabase.from('companies').delete().eq('id', id)
     if (error) { refetch(); return error }
     return null
   }, [refetch])
 
-  // ── Funds ────────────────────────────────────────────────────────────────
+  // Fund helpers — delegate to company CRUD
   const addFund = useCallback(async (name) => {
-    const tmp = { id: `tmp-${Date.now()}`, name }
-    setFunds(prev => [...prev, tmp])
-    const { data, error } = await supabase
-      .from('funds').insert({ name })
-      .select('id, name').single()
-    if (error) { setFunds(prev => prev.filter(f => f.id !== tmp.id)); return error }
-    setFunds(prev => prev.map(f => f.id === tmp.id ? data : f))
-    return null
-  }, [])
+    return addCompany({ name, type: 'fund', fund_id: null })
+  }, [addCompany])
 
   const renameFund = useCallback(async (id, name) => {
-    setFunds(prev => prev.map(f => f.id === id ? { ...f, name } : f))
-    const { error } = await supabase.from('funds').update({ name }).eq('id', id)
-    if (error) { refetch(); return error }
-    return null
-  }, [refetch])
+    return updateCompany(id, { name })
+  }, [updateCompany])
 
   const deleteFund = useCallback(async (id) => {
-    // companies with this fund_id will have fund_id set to null (ON DELETE SET NULL)
-    setFunds(prev => prev.filter(f => f.id !== id))
-    setCompanies(prev => prev.map(c => c.fund_id === id ? { ...c, fund_id: null } : c))
-    const { error } = await supabase.from('funds').delete().eq('id', id)
-    if (error) { refetch(); return error }
-    return null
-  }, [refetch])
+    return deleteCompany(id)
+  }, [deleteCompany])
 
-  // ── Templates ───────────────────────────────────────────────────────────
+  // ── Templates ───────────────────────────────────────────────────────────────
   const addTemplate = useCallback(async (fields) => {
     const tmp = { id: `tmp-${Date.now()}`, ...fields }
     setTemplates(prev => [...prev, tmp])
+    const s = await schemaCols()
+    const selCols = s.hasTplDescription
+      ? 'id, name, category, description, steps'
+      : 'id, name, category, steps'
     const { data, error } = await supabase
       .from('thread_templates').insert(fields)
-      .select('id, name, category, steps').single()
+      .select(selCols).single()
     if (error) { setTemplates(prev => prev.filter(t => t.id !== tmp.id)); return error }
     setTemplates(prev => prev.map(t => t.id === tmp.id ? data : t))
     return null
@@ -391,7 +681,7 @@ export function useManage() {
 
   return {
     categories, companies, templates, funds, loading, refetch,
-    addCategory, renameCategory, updateCategoryVisibility, deleteCategory,
+    addCategory, renameCategory, updateCategory, deleteCategory,
     addCompany, updateCompany, deleteCompany,
     addFund, renameFund, deleteFund,
     addTemplate, updateTemplate, deleteTemplate,
