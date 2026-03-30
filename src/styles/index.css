@@ -91,7 +91,7 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 
 /* Task table */
 .ftm-table { background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); overflow: hidden; }
-.ftm-row { display: grid; grid-template-columns: 24px 1fr 116px 88px 76px 80px 72px 28px; align-items: center; padding: 0 10px; border-bottom: 0.5px solid var(--border); min-height: 54px; gap: 6px; cursor: pointer; transition: background 0.1s; }
+.ftm-row { display: grid; grid-template-columns: 24px 1fr 96px 76px 80px 84px 28px; align-items: center; padding: 0 10px; border-bottom: 0.5px solid var(--border); min-height: 54px; gap: 6px; cursor: pointer; transition: background 0.1s; }
 .ftm-row:last-child { border-bottom: none; }
 .ftm-row:hover { background: var(--surface2); }
 .ftm-row.hdr { background: var(--surface2); cursor: default; min-height: 30px; }
@@ -114,10 +114,12 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .b-cat    { background: var(--gold-bg); color: #7a5c1e; }
 .b-co     { background: rgba(55,138,221,0.10); color: #1e5282; }
 .b-thread { background: rgba(93,202,165,0.13); color: #166147; }
-/* Labels column — three stacked editable badge-popovers */
-.ftm-labels { display: flex; flex-direction: column; gap: 3px; overflow: hidden; padding: 4px 0; }
-.ftm-labels .ftm-cell-trigger { margin: 0; width: 100%; display: flex; }
-.ftm-label-badge { font-size: 9px !important; padding: 1px 6px !important; max-width: 100%; overflow: hidden; text-overflow: ellipsis; display: block !important; cursor: pointer; }
+/* Title cell — two-line layout: title on top, inline badges below */
+.ftm-title-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 6px 0; }
+.ftm-title-labels { display: flex; gap: 4px; flex-wrap: nowrap; overflow: hidden; align-items: center; }
+.ftm-label-badge { font-size: 10px !important; padding: 1px 6px !important; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+.ftm-thread-ind { font-size: 10px; color: var(--light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; flex-shrink: 1; min-width: 0; }
+.ftm-thread-ind:hover { color: var(--navy2); }
 .ftm-pop-null { font-style: italic; color: var(--light); font-size: 11px; }
 .ftm-pop-navigate { color: var(--navy2) !important; font-weight: 500; border-bottom: 0.5px solid var(--border); font-size: 11px; }
 .ftm-asgn { display: flex; align-items: center; gap: 5px; min-width: 0; }

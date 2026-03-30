@@ -37,7 +37,6 @@ export default function TaskList({ tasks, allTasks, loading, error, selectedId, 
               <div className="ftm-row hdr">
                 <div />
                 <div className="ftm-ch">Task</div>
-                <div className="ftm-ch">Labels</div>
                 <div className="ftm-ch">Status</div>
                 <div className="ftm-ch">Priority</div>
                 <div className="ftm-ch">Assignee</div>
