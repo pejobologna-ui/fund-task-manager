@@ -36,10 +36,23 @@ export function AuthProvider({ children }) {
       else setSession(null)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
-      if (session?.user) fetchProfile(session.user.id)
-      else { setProfile(null); setSession(null) }
+      if (session?.user) {
+        fetchProfile(session.user.id)
+        // Log sign-in events only (not TOKEN_REFRESHED, USER_UPDATED, etc.)
+        if (event === 'SIGNED_IN') {
+          supabase.rpc('log_audit', {
+            p_action:        'login',
+            p_resource_type: 'session',
+            p_resource_id:   session.user.id,
+            p_metadata:      { email: session.user.email },
+          }).catch(() => {}) // fire-and-forget; never block the auth flow
+        }
+      } else {
+        setProfile(null)
+        setSession(null)
+      }
     })
 
     return () => subscription.unsubscribe()
@@ -47,6 +60,13 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     if (DEV_BYPASS) return
+    // Log the logout before ending the session — auth.uid() needs an active JWT
+    try {
+      await supabase.rpc('log_audit', {
+        p_action:        'logout',
+        p_resource_type: 'session',
+      })
+    } catch { /* non-blocking */ }
     await supabase.auth.signOut()
   }
 
