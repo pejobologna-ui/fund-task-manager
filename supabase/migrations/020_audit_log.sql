@@ -44,7 +44,12 @@ ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 -- GPs can read all audit log entries
 CREATE POLICY "audit_log_select"
   ON audit_log FOR SELECT TO authenticated
-  USING (get_my_role() = 'gp');
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.profiles
+      WHERE id = auth.uid() AND role = 'gp'
+    )
+  );
 
 -- Any authenticated user can insert (client-side login/logout events via RPC)
 CREATE POLICY "audit_log_insert"
