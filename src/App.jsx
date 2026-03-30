@@ -40,9 +40,11 @@ export default function App() {
   const [view, setView]         = useState('all')
   const [navFilter, setNavFilter] = useState(null)   // { type: 'category'|'company'|'thread', id, name }
   const [threadPage, setThreadPage] = useState(null) // threadId string | null
-  const [filterStatus, setFS] = useState('all')
-  const [filterPrio, setFP]   = useState('all')
-  const [query, setQuery]     = useState('')
+  const [filterStatus, setFS]   = useState('all')
+  const [filterPrio, setFP]     = useState('all')
+  const [filterCat,  setFC]     = useState('all')  // macro_category string or 'all'
+  const [groupBy,    setGroupBy] = useState('none') // 'none' | 'category' | 'company'
+  const [query, setQuery]       = useState('')
   const [selectedId, select]  = useState(null)
   const [modalOpen, setModal] = useState(false)
   const [modalPresetCat, setModalPresetCat] = useState(null)
@@ -119,13 +121,17 @@ export default function App() {
       }
       if (filterStatus !== 'all' && t.status !== filterStatus) return false
       if (filterPrio   !== 'all' && t.priority !== filterPrio)  return false
+      if (filterCat    !== 'all' && !navFilter) {
+        // Only apply when navFilter isn't active — navFilter takes precedence
+        if (t.category?.macro_category !== filterCat) return false
+      }
       if (q) {
         const hay = [t.title, t.category?.name, t.thread?.name, t.company?.name].join(' ').toLowerCase()
         if (!hay.includes(q)) return false
       }
       return true
     })
-  }, [allItems, view, navFilter, filterStatus, filterPrio, query, myInitials, myUserId])
+  }, [allItems, view, navFilter, filterStatus, filterPrio, filterCat, query, myInitials, myUserId])
 
   const selectedTask = allItems.find(t => t.id === selectedId) ?? null
 
@@ -194,6 +200,11 @@ export default function App() {
             filterPrio={filterPrio}
             onStatus={setFS}
             onPrio={setFP}
+            categories={categories}
+            filterCategory={filterCat}
+            onCategory={setFC}
+            groupBy={groupBy}
+            onGroupBy={setGroupBy}
           />
           <div className="ftm-content">
             <TaskList
@@ -207,6 +218,7 @@ export default function App() {
               onUpdate={handleUpdate}
               onAddInCategory={openNewTask}
               onOpenThread={handleOpenThread}
+              groupBy={groupBy}
             />
           </div>
         </div>
