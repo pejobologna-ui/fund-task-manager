@@ -10,17 +10,6 @@ function shapeProfile(p) {
   return { id: p.id, name: p.full_name ?? p.name ?? '', initials: p.initials ?? '', role: p.role ?? '' }
 }
 
-// Resolve assignee_id → profile for an array of rows, avoiding the PostgREST
-// embedded-resource join (which depends on schema-cache awareness of the FK).
-async function attachAssignees(rows) {
-  const ids = [...new Set(rows.map(r => r.assignee_id).filter(Boolean))]
-  if (ids.length === 0) return rows.map(r => ({ ...r, assignee: null }))
-  const { data: profiles } = await supabase
-    .from('profiles').select('id, full_name, initials, role').in('id', ids)
-  const map = Object.fromEntries((profiles ?? []).map(p => [p.id, p]))
-  return rows.map(r => ({ ...r, assignee: shapeProfile(map[r.assignee_id] ?? null) }))
-}
-
 // ── Column-detection ─────────────────────────────────────────────────────────
 // Migration 012 adds macro_category, "order", threads.status, etc.
 // No module-level cache — schema can change after migrations are applied.
@@ -80,11 +69,12 @@ export function useTasks() {
     const s = await schemaCols()
     const cols = [
       'id, title, description, status, priority, due_date, notes, created_at',
-      'visibility, created_by, assignee_id',
+      'visibility, created_by',
       s.hasOrder ? '"order"' : null,
       catSelect(s),
       threadEmbed(s),
       'company:companies(id, name, type, fund_id)',
+      'assignee:profiles!assignee_id(id, full_name, initials, role)',
     ].filter(Boolean).join(',\n        ')
 
     const { data, error } = await supabase
@@ -98,7 +88,7 @@ export function useTasks() {
     } else {
       const seen = new Set()
       const unique = (data ?? []).filter(t => seen.has(t.id) ? false : seen.add(t.id))
-      setTasks(await attachAssignees(unique))
+      setTasks(unique.map(r => ({ ...r, assignee: shapeProfile(r.assignee) })))
     }
     setLoading(false)
   }, [])
@@ -253,17 +243,18 @@ export function useThread(threadId) {
       s.hasThreadStatus ? 'status, template_id' : null,
       'company_id, company:companies(id, name, type)',
     ].filter(Boolean)
-    if (s.hasThreadAssignee) thColParts.push('assignee_id')
+    if (s.hasThreadAssignee) thColParts.push('assignee_id, assignee:profiles!assignee_id(id, full_name, initials, role)')
     if (s.hasThreadDueDate)  thColParts.push('due_date')
     if (s.hasThreadCategory) thColParts.push('category_id, category:activity_categories(id, name, macro_category)')
     if (s.hasThreadPriority) thColParts.push('priority')
     const thCols = thColParts.join(', ')
 
     const tkCols = [
-      'id, title, description, status, priority, due_date, notes, created_at, assignee_id',
+      'id, title, description, status, priority, due_date, notes, created_at',
       s.hasOrder ? '"order"' : null,
       catSelect(s),
       'company:companies(id, name, type)',
+      'assignee:profiles!assignee_id(id, full_name, initials, role)',
     ].filter(Boolean).join(',\n          ')
 
     const query = supabase.from('tasks').select(tkCols).eq('thread_id', threadId)
@@ -275,14 +266,9 @@ export function useThread(threadId) {
       query,
     ])
 
-    // Resolve thread assignee via the shared helper (avoids FK schema-cache issues)
-    let threadRow = th ?? null
-    if (threadRow && s.hasThreadAssignee) {
-      ;[threadRow] = await attachAssignees([threadRow])
-    }
-
+    const threadRow = th ? { ...th, assignee: shapeProfile(th.assignee ?? null) } : null
     setThread(threadRow)
-    setTasks(await attachAssignees(tk ?? []))
+    setTasks((tk ?? []).map(r => ({ ...r, assignee: shapeProfile(r.assignee) })))
     setLoading(false)
   }, [threadId])
 
@@ -307,10 +293,11 @@ export function useThread(threadId) {
     }
 
     const selCols = [
-      'id, title, description, status, priority, due_date, notes, created_at, assignee_id',
+      'id, title, description, status, priority, due_date, notes, created_at',
       s.hasOrder ? '"order"' : null,
       catSelect(s),
       'company:companies(id, name, type)',
+      'assignee:profiles!assignee_id(id, full_name, initials, role)',
     ].filter(Boolean).join(',\n        ')
 
     const { data, error } = await supabase
@@ -319,8 +306,7 @@ export function useThread(threadId) {
       .select(selCols)
       .single()
     if (!error) {
-      const [shaped] = await attachAssignees([data])
-      setTasks(prev => [...prev, shaped])
+      setTasks(prev => [...prev, { ...data, assignee: shapeProfile(data.assignee) }])
     }
     return error
   }, [threadId, tasks, thread])
@@ -418,10 +404,11 @@ export function useActiveSteps() {
     const s = await schemaCols()
     const cols = [
       'id, title, description, status, priority, due_date, created_at',
-      'thread_id, assignee_id',
+      'thread_id',
       s.hasOrder ? '"order"' : null,
       threadEmbedFull(s),
       catSelect(s),
+      'assignee:profiles!assignee_id(id, full_name, initials, role)',
     ].filter(Boolean).join(',\n        ')
 
     const query = supabase.from('tasks').select(cols)
@@ -438,18 +425,17 @@ export function useActiveSteps() {
       for (const task of data) {
         if (!byThread[task.thread_id]) byThread[task.thread_id] = task
       }
-      const withAssignees = await attachAssignees(Object.values(byThread))
-      setActiveSteps(withAssignees.map(task => ({
+      setActiveSteps(Object.values(byThread).map(task => ({
         ...task,
-        // category fallback for tasks without an explicit category
-        category: task.category ?? { id: null, name: 'Threads', macro_category: null },
-        company:  task.thread?.company ?? null,
-        thread:   task.thread ? { id: task.thread_id, name: task.thread.name } : null,
+        assignee:   shapeProfile(task.assignee),
+        category:   task.category ?? { id: null, name: 'Threads', macro_category: null },
+        company:    task.thread?.company ?? null,
+        thread:     task.thread ? { id: task.thread_id, name: task.thread.name } : null,
         visibility: 'team',
-        notes: '',
+        notes:      '',
         created_by: null,
-        _isStep:   true,
-        _threadId: task.thread_id,
+        _isStep:    true,
+        _threadId:  task.thread_id,
       })))
     }
     setLoading(false)
@@ -499,11 +485,12 @@ export async function createTaskWithShares(fields, shareWithIds = []) {
 
   const selCols = [
     'id, title, description, status, priority, due_date, notes, created_at',
-    'visibility, created_by, assignee_id',
+    'visibility, created_by',
     s.hasOrder ? '"order"' : null,
     catSelect(s),
     threadEmbed(s),
     'company:companies(id, name, type, fund_id)',
+    'assignee:profiles!assignee_id(id, full_name, initials, role)',
   ].filter(Boolean).join(',\n      ')
 
   const { data: task, error: taskError } = await supabase
@@ -520,8 +507,7 @@ export async function createTaskWithShares(fields, shareWithIds = []) {
     if (sharesError) return { data: task, error: sharesError }
   }
 
-  const [shaped] = await attachAssignees([task])
-  return { data: shaped, error: null }
+  return { data: { ...task, assignee: shapeProfile(task.assignee) }, error: null }
 }
 
 // ── createTemplate ────────────────────────────────────────────────────────────
