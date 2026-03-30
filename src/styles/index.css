@@ -23,13 +23,13 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm { display: flex; height: 100vh; overflow: hidden; }
 
 /* Sidebar */
-.ftm-sidebar { width: 200px; min-width: 200px; background: var(--navy); display: flex; flex-direction: column; overflow-y: auto; }
+.ftm-sidebar { width: 248px; min-width: 248px; background: var(--navy); display: flex; flex-direction: column; overflow-y: auto; }
 .ftm-brand { padding: 16px 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.07); }
 .ftm-brand-name { font-size: 13px; font-weight: 500; color: #fff; }
 .ftm-brand-sub { font-size: 10px; color: rgba(255,255,255,0.3); margin-top: 1px; letter-spacing: 0.06em; }
 .ftm-snav { padding: 12px 8px 6px; }
 .ftm-slabel { font-size: 9px; font-weight: 500; color: rgba(255,255,255,0.28); letter-spacing: 0.1em; text-transform: uppercase; padding: 0 6px; margin-bottom: 2px; }
-.ftm-sitem { display: flex; align-items: center; gap: 7px; padding: 6px 6px; border-radius: 6px; cursor: pointer; color: rgba(255,255,255,0.55); font-size: 12px; transition: all 0.12s; user-select: none; }
+.ftm-sitem { display: flex; align-items: center; gap: 7px; padding: 7px 8px; border-radius: 6px; cursor: pointer; color: rgba(255,255,255,0.55); font-size: 12px; transition: all 0.12s; user-select: none; }
 .ftm-sitem:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
 .ftm-sitem.active { background: rgba(184,147,62,0.18); color: #d4a853; }
 .ftm-sdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
@@ -42,7 +42,7 @@ body { background: var(--bg); color: var(--text); font-size: 14px; min-height: 1
 .ftm-schevron.closed { transform: rotate(-90deg); }
 .ftm-ssub-label { font-size: 9px; color: rgba(255,255,255,0.2); letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 12px 2px; }
 .ftm-sitem-sub { padding-left: 14px !important; }
-.ftm-sitem-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: 11px; }
+.ftm-sitem-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; font-size: 12px; }
 /* Thread progress indicator */
 .ftm-sprog { display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0; }
 .ftm-sprog-track { width: 26px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
