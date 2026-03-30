@@ -138,6 +138,17 @@ export default function ThreadPage({
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
   const [applyTemplateOpen, setApplyTemplateOpen] = useState(false)
 
+  // View toggle — persisted to localStorage
+  const [threadView, setThreadView] = useState(
+    () => localStorage.getItem('ftm-thread-view-pref') ?? 'pipeline'
+  )
+  function switchView(v) {
+    setThreadView(v)
+    localStorage.setItem('ftm-thread-view-pref', v)
+    setAddingTask(false)
+    setNewTitle('')
+  }
+
   // Inline editing state
   const [editName,     setEditName]     = useState(null) // null = not editing
   const [editDesc,     setEditDesc]     = useState(null)
@@ -545,45 +556,125 @@ export default function ThreadPage({
         </div>
       </div>
 
-      {/* ── Pipeline ── */}
+      {/* ── Pipeline / Table toggle section ── */}
       <div className="ftm-section-block">
         <div className="ftm-section-label">
-          Pipeline
+          {threadView === 'pipeline' ? 'Pipeline' : 'Tasks'}
           {totalCount > 0 && (
             <span className="ftm-section-progress">{doneCount} / {totalCount} complete</span>
           )}
+          <div className="ftm-view-toggle">
+            <button
+              className={`ftm-view-btn${threadView === 'pipeline' ? ' active' : ''}`}
+              title="Pipeline view"
+              onClick={() => switchView('pipeline')}
+            >⊞</button>
+            <button
+              className={`ftm-view-btn${threadView === 'table' ? ' active' : ''}`}
+              title="Table view"
+              onClick={() => switchView('table')}
+            >☰</button>
+          </div>
         </div>
 
-        <div className="ftm-pipeline-wrap">
-          <div className="ftm-pipeline">
-            {tasks.map((task, i) => (
-              <div key={task.id} className="ftm-step-wrap" style={{ display: 'flex', alignItems: 'center' }}>
-                <TaskCard
-                  task={task}
-                  index={i}
-                  isActive={i === activeIdx}
-                  isDragging={dragIdx === i}
-                  isDragOver={dragOverIdx === i}
-                  onDragStart={() => setDragIdx(i)}
-                  onDragOver={() => setDragOverIdx(i)}
-                  onDrop={() => handleDrop(i)}
-                  onDragEnd={handleDragEnd}
-                  onCycleStatus={() => cycleTaskStatus(task.id, task.status)}
-                  onEditTask={id => setEditingTaskId(id)}
-                />
-                {i < tasks.length - 1 && (
-                  <div className={`ftm-step-connector${task.status === 'Done' ? ' done' : ''}`} />
-                )}
-              </div>
-            ))}
+        <StatsBar tasks={tasks} />
 
-            {addingTask ? (
-              <div className="ftm-step-wrap">
-                {tasks.length > 0 && <div className="ftm-step-connector" />}
-                <div className="ftm-step-add-form">
+        {/* ── Pipeline view ── */}
+        {threadView === 'pipeline' && (
+          <div className="ftm-pipeline-wrap">
+            <div className="ftm-pipeline">
+              {tasks.map((task, i) => (
+                <div key={task.id} className="ftm-step-wrap" style={{ display: 'flex', alignItems: 'center' }}>
+                  <TaskCard
+                    task={task}
+                    index={i}
+                    isActive={i === activeIdx}
+                    isDragging={dragIdx === i}
+                    isDragOver={dragOverIdx === i}
+                    onDragStart={() => setDragIdx(i)}
+                    onDragOver={() => setDragOverIdx(i)}
+                    onDrop={() => handleDrop(i)}
+                    onDragEnd={handleDragEnd}
+                    onCycleStatus={() => cycleTaskStatus(task.id, task.status)}
+                    onEditTask={id => setEditingTaskId(id)}
+                  />
+                  {i < tasks.length - 1 && (
+                    <div className={`ftm-step-connector${task.status === 'Done' ? ' done' : ''}`} />
+                  )}
+                </div>
+              ))}
+
+              {addingTask ? (
+                <div className="ftm-step-wrap">
+                  {tasks.length > 0 && <div className="ftm-step-connector" />}
+                  <div className="ftm-step-add-form">
+                    <input
+                      autoFocus
+                      className="ftm-finput"
+                      placeholder="Task title…"
+                      value={newTitle}
+                      onChange={e => setNewTitle(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleAddTask()
+                        if (e.key === 'Escape') { setAddingTask(false); setNewTitle('') }
+                      }}
+                    />
+                    <button className="ftm-btn" onClick={handleAddTask} disabled={saving}>
+                      {saving ? '…' : 'Add'}
+                    </button>
+                    <button className="ftm-gbtn" onClick={() => { setAddingTask(false); setNewTitle('') }}>✕</button>
+                  </div>
+                </div>
+              ) : (
+                tasks.length === 0 && (
+                  <button className="ftm-step-empty-btn" onClick={() => setAddingTask(true)}>
+                    + Add first task
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Table view ── */}
+        {threadView === 'table' && (
+          tasks.length === 0 && !addingTask ? (
+            <div className="ftm-empty" style={{ padding: '24px 0' }}>
+              No tasks yet — add one above or start from a template.
+            </div>
+          ) : (
+            <div className="ftm-table">
+              <div className="ftm-row hdr">
+                <div />
+                <div className="ftm-ch">Task</div>
+                <div className="ftm-ch">Status</div>
+                <div className="ftm-ch">Priority</div>
+                <div className="ftm-ch">Assignee</div>
+                <div className="ftm-ch">Due</div>
+                <div />
+              </div>
+              {tasks.map(t => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  selected={editingTaskId === t.id}
+                  onSelect={id => setEditingTaskId(id)}
+                  onToggle={(id, status) => cycleTaskStatus(id, status)}
+                  onUpdate={(id, db, state) => updateTask(id, db, state)}
+                  users={users}
+                  categories={categories}
+                  companies={companies}
+                  threads={threads}
+                  onOpenThread={onOpenThread}
+                  hideThread
+                />
+              ))}
+              {addingTask ? (
+                <div className="ftm-addrow ftm-addrow-form">
                   <input
                     autoFocus
                     className="ftm-finput"
+                    style={{ flex: 1, height: 28, fontSize: 12 }}
                     placeholder="Task title…"
                     value={newTitle}
                     onChange={e => setNewTitle(e.target.value)}
@@ -592,68 +683,18 @@ export default function ThreadPage({
                       if (e.key === 'Escape') { setAddingTask(false); setNewTitle('') }
                     }}
                   />
-                  <button className="ftm-btn" onClick={handleAddTask} disabled={saving}>
+                  <button className="ftm-btn" style={{ height: 28, fontSize: 12 }} onClick={handleAddTask} disabled={saving}>
                     {saving ? '…' : 'Add'}
                   </button>
-                  <button className="ftm-gbtn" onClick={() => { setAddingTask(false); setNewTitle('') }}>✕</button>
+                  <button className="ftm-gbtn" style={{ height: 28, fontSize: 12 }} onClick={() => { setAddingTask(false); setNewTitle('') }}>✕</button>
                 </div>
-              </div>
-            ) : (
-              tasks.length === 0 && (
-                <button className="ftm-step-empty-btn" onClick={() => setAddingTask(true)}>
-                  + Add first task
-                </button>
-              )
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Thread tasks table (dashboard-style) ── */}
-      <div className="ftm-section-block">
-        <div className="ftm-section-label">
-          Tasks
-          {totalCount > 0 && (
-            <span className="ftm-section-progress">{doneCount} / {totalCount} complete</span>
-          )}
-        </div>
-
-        <StatsBar tasks={tasks} />
-
-        {tasks.length === 0 ? (
-          <div className="ftm-empty" style={{ padding: '24px 0' }}>No tasks yet — add one above or start from a template.</div>
-        ) : (
-          <div className="ftm-table">
-            <div className="ftm-row hdr">
-              <div />
-              <div className="ftm-ch">Task</div>
-              <div className="ftm-ch">Labels</div>
-              <div className="ftm-ch">Status</div>
-              <div className="ftm-ch">Priority</div>
-              <div className="ftm-ch">Assignee</div>
-              <div className="ftm-ch">Due</div>
-              <div />
+              ) : (
+                <div className="ftm-addrow" onClick={() => setAddingTask(true)}>
+                  <span>+</span> Add task
+                </div>
+              )}
             </div>
-            {tasks.map(t => (
-              <TaskRow
-                key={t.id}
-                task={t}
-                selected={editingTaskId === t.id}
-                onSelect={id => setEditingTaskId(id)}
-                onToggle={(id, status) => cycleTaskStatus(id, status)}
-                onUpdate={(id, db, state) => updateTask(id, db, state)}
-                users={users}
-                categories={categories}
-                companies={companies}
-                threads={threads}
-                onOpenThread={onOpenThread}
-                hideThread
-              />
-            ))}
-            <div className="ftm-addrow" onClick={() => setAddingTask(true)}>
-              <span>+</span> Add task
-            </div>
-          </div>
+          )
         )}
       </div>
 
