@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useThread, useLookups, useProfiles } from '../hooks/useTasks'
-import StepEditPopover from '../components/StepEditPopover'
+import DetailPanel from '../components/DetailPanel'
 import SaveAsTemplateModal from '../components/SaveAsTemplateModal'
 import ApplyTemplateModal from '../components/ApplyTemplateModal'
 import StatsBar from '../components/StatsBar'
@@ -61,6 +61,8 @@ function TaskCard({
         isDragOver  ? 'ftm-step-dragover' : '',
       ].filter(Boolean).join(' ')}
       draggable
+      style={{ cursor: 'pointer' }}
+      onClick={() => onEditTask?.(task.id)}
       onDragStart={onDragStart}
       onDragOver={e => { e.preventDefault(); onDragOver() }}
       onDrop={e => { e.preventDefault(); onDrop() }}
@@ -106,13 +108,7 @@ function TaskCard({
         )}
       </div>
 
-      <button
-        className="ftm-step-edit-btn"
-        title="Edit task"
-        onClick={e => { e.stopPropagation(); onEditTask?.(task.id) }}
-      >✎</button>
-
-      <div className="ftm-step-drag-handle" title="Drag to reorder">⠿</div>
+      <div className="ftm-step-drag-handle" title="Drag to reorder" onClick={e => e.stopPropagation()}>⠿</div>
     </div>
   )
 }
@@ -231,18 +227,6 @@ export default function ThreadPage({
 
   return (
     <div className="ftm-thread-page">
-
-      {/* ── Task edit modal ── */}
-      {editingTask && (
-        <StepEditPopover
-          step={editingTask}
-          users={users}
-          categories={categories}
-          onSave={async (taskId, dbUpdates, stateUpdates) => { await updateTask(taskId, dbUpdates, stateUpdates) }}
-          onDelete={async (taskId) => { await deleteTask(taskId); setEditingTaskId(null) }}
-          onClose={() => setEditingTaskId(null)}
-        />
-      )}
 
       {/* ── Header ── */}
       <div className="ftm-thread-hdr">
@@ -719,6 +703,19 @@ export default function ThreadPage({
           profiles={profiles}
         />
       )}
+
+      {/* ── Task detail panel ── */}
+      <DetailPanel
+        task={editingTask}
+        onClose={() => setEditingTaskId(null)}
+        onToggle={(id, status) => cycleTaskStatus(id, status)}
+        onUpdateNotes={(id, notes) => updateTask(id, { notes }, { notes })}
+        onUpdate={(id, db, state) => updateTask(id, db, state)}
+        categories={categories}
+        threads={threads}
+        companies={companies}
+        users={users}
+      />
 
     </div>
   )

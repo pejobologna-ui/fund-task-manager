@@ -37,13 +37,6 @@ export default function App() {
     if (typeof id === 'string' && id.startsWith('step-')) return updateActiveStep(id, dbUpdates)
     return updateField(id, dbUpdates, stateUpdates)
   }
-  function handleSelect(id) {
-    // If clicking a step-task, navigate to its thread instead of opening detail panel
-    const item = allItems.find(t => t.id === id)
-    if (item?._isStep) { handleOpenThread(item._threadId); return }
-    select(id)
-  }
-
   const [view, setView]         = useState('all')
   const [navFilter, setNavFilter] = useState(null)   // { type: 'category'|'company'|'thread', id, name }
   const [threadPage, setThreadPage] = useState(null) // threadId string | null
@@ -209,7 +202,7 @@ export default function App() {
               loading={loading}
               error={error}
               selectedId={selectedId}
-              onSelect={handleSelect}
+              onSelect={select}
               onToggle={handleToggle}
               onUpdate={handleUpdate}
               onAddInCategory={openNewTask}
